@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "rsna2024"
+version = "0.1.0"
+description = ""
+authors = ["Daniel Phalen <phalendj@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+torchio = "^0.19.9"
+torch = "^2.4.0"
+numpy = "^2.0.1"
+cv = "^1.0.0"
+pandas = "^2.2.2"
+pytest = "^8.3.2"
+scikit-learn = "^1.5.1"
+tqdm = "^4.66.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
