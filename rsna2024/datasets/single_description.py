@@ -18,7 +18,7 @@ class SpinalCanalStenosisCenterDataset(Dataset):
         self.study_ids = list(study_ids)
         self.image_size = int(image_size[0]), int(image_size[1])
         self.channels = channels
-        logger.info(f'Output will have size {self.image_size} with {self.channels}')
+        logger.info(f'Output will have size {self.image_size} with {self.channels} channels')
         self.mode = mode
         self.transform = transform
         if self.mode == 'train' or self.mode == 'valid':

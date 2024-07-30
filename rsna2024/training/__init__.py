@@ -161,10 +161,8 @@ def train_one_fold(model, cfg, fold: int):
                         N_LABELS = t.shape[-1]
                         for col in range(N_LABELS):
                             pred = y[:,col*3:col*3+3]
-                            gt = t[:]
-
+                            gt = t[:, col]
                             loss = loss + criterion(pred, gt) / N_LABELS
-                            y_pred = pred.float()
 
                         total_loss += loss.item()   
 
