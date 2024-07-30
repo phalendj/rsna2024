@@ -1,10 +1,15 @@
 import hydra
 import logging
 import datetime
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
-from .. import rsna2024 as rsna2024
+try:
+    from .utils import set_directories, set_random_seed
+except ImportError:
+    from utils import set_directories, set_random_seed
 
+import models
+import training
 
 
 logger = logging.getLogger(__name__)
@@ -13,13 +18,13 @@ logger = logging.getLogger(__name__)
 @hydra.main(version_base=None, config_path="../config", config_name="config1")
 def run(cfg: DictConfig) -> None:
     logging.info(f'Configuration: {cfg}')
-    rsna2024.set_random_seed(cfg.seed)
-    rsna2024.set_directories(cfg.directories)
+    set_random_seed(cfg.seed)
+    set_directories(cfg.directories)
     # torch.set_float32_matmul_precision('high')
     for fold in cfg.training.use_folds:
         logger.info(f'Run Fold {fold}')
-        model = rsna2024.models.create_model(cfg=cfg.model)
-        rsna2024.training.train_one_fold(model=model, cfg=cfg, fold=fold)
+        model = models.create_model(cfg=cfg.model)
+        training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
 
 if __name__ == '__main__':

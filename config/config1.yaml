@@ -8,7 +8,7 @@ directories:
 
 dataset:
   name: SpinalCanalStenosisCenterDataset
-  image_size: (512, 512)
+  image_size: [512, 512]
   channels: 3
 
 loss:
@@ -21,7 +21,7 @@ model:
   channels: 3
   nclasses: 15
 
-opimization:
+optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
   learning_rate: 1.e-4

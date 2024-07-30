@@ -27,7 +27,7 @@ import pandas as pd
 
 import pydicom
 
-from rsna2024 import image_directory
+from utils import image_directory
 
 
 def get_study_directory(study_id):

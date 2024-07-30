@@ -1,5 +1,5 @@
-import severe
-import weighted_crossentropy
+import loss_functions.severe as severe
+import loss_functions.weighted_crossentropy as weighted_crossentropy
 
 
 def create_loss(cfg, device):

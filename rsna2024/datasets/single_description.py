@@ -1,29 +1,36 @@
+import logging
 import numpy as np
 
 import cv2
 import torch
 from torch.utils.data import Dataset
 
-from rsna2024 import relative_directory
-from rsna2024.datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
-from rsna2024.datasets.dicom_load import Study
+from utils import relative_directory
+from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
+from datasets.dicom_load import Study
+
+logger = logging.getLogger(__name__)
+
 
 
 class SpinalCanalStenosisCenterDataset(Dataset):
-    def __init__(self, study_ids, image_size, channels, mode='train', transforms=None):
+    def __init__(self, study_ids, image_size, channels, mode='train', transform=None):
         self.study_ids = list(study_ids)
-        self.image_size = image_size
+        self.image_size = int(image_size[0]), int(image_size[1])
         self.channels = channels
+        logger.info(f'Output will have size {self.image_size} with {self.channels}')
         self.mode = mode
-        self.transforms = transforms
+        self.transform = transform
         if self.mode == 'train' or self.mode == 'valid':
-            self.labels_df, self.series_description_df, self.coordinate_df = load_train_files(relative_directory=relative_directory)
+            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory)
         else:
             self.labels_df = None
             self.coordinate_df = None
             self.series_description_df = load_test_files(relative_directory=relative_directory)
 
+        logger.info(f'Loading {len(study_ids)} Studies')
         self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
+        logger.info(f'Done')
 
         condition = [c for c in CONDITIONS if 'Spinal' in c][0]
         self.label_columns = [create_column(condition, level=level) for level in LEVELS]
@@ -46,6 +53,9 @@ class SpinalCanalStenosisCenterDataset(Dataset):
                 data = available[0].data
 
             # Trim to appropriate size
+            # logger.info(f'Data Shape : {data.shape}')
+            data = data.transpose(1, 2, 0)
+            # logger.info(f'Data Shape : {data.shape}')
             H, W, D = data.shape
             if H > W:
                 diff = H-W
@@ -54,7 +64,7 @@ class SpinalCanalStenosisCenterDataset(Dataset):
                 else:
                     offset = int(diff//2)
                 data = data[offset:offset+W]
-                data = cv2.resize(data, self.image_size, cv2.INTER_LANCZOS4)
+                data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
             elif W > H:
                 diff = W-H
                 if self.mode == 'train':
@@ -63,8 +73,8 @@ class SpinalCanalStenosisCenterDataset(Dataset):
                     offset = int(diff//2)
 
                 data = data[:, offset:offset+H]
-
-                data = cv2.resize(data, self.image_size, cv2.INTER_LANCZOS4)
+            # logger.info(f'Data Shape : {data.shape}')
+            data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
 
             # Select the middle portion number of channels
             i0 = int((D - self.channels) // 2)
@@ -80,7 +90,7 @@ class SpinalCanalStenosisCenterDataset(Dataset):
         target = {}
         target['labels'] = torch.tensor(label)
 
-        return x, target
+        return torch.tensor(x, dtype=torch.float) / 255.0, target
 
     def __len__(self):
         return len(self.study_ids)

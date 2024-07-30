@@ -1,4 +1,4 @@
-import vision2d
+from . import vision2d
 
 
 def create_model(cfg):

@@ -1,4 +1,4 @@
-import single_description
+import datasets.single_description as single_description
 
 
 
@@ -8,7 +8,7 @@ def create_dataset(study_ids, mode, cfg):
                                                                    image_size=cfg.image_size,
                                                                    channels=cfg.channels,
                                                                    mode=mode, 
-                                                                   transforms=None
+                                                                   transform=None
                                                                    )
     else:
         raise NotImplementedError

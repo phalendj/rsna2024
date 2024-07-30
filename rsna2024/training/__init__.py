@@ -11,10 +11,10 @@ from transformers import get_cosine_schedule_with_warmup
 
 from hydra.core.hydra_config import HydraConfig
 
-from rsna2024.datasets import load_train_files
-from rsna2024 import relative_directory
-import rsna2024.datasets.factory as dsfactory
-import rsna2024.loss_functions as lffactory
+from datasets import load_train_files
+from utils import relative_directory
+from datasets import factory as dsfactory
+import loss_functions as lffactory
 
 
 logger = logging.getLogger(__name__)
@@ -90,10 +90,12 @@ def train_one_fold(model, cfg, fold: int):
 
     output_directory = Path(HydraConfig.get().runtime.output_dir)
 
-    fname = output_directory / model.name() + f'_fold{fold}.pth'
+    fname = output_directory / (model.name() + f'_fold{fold}.pth')
 
     GRAD_ACC = cfg.training.grad_acc
     MAX_GRAD_NORM = None
+
+    model.to(device)
 
     EPOCHS = cfg.training.epochs
     for epoch in range(1, EPOCHS+1):
@@ -102,7 +104,7 @@ def train_one_fold(model, cfg, fold: int):
         total_loss = 0
         with tqdm(train_dl, leave=True) as pbar:
             optimizer.zero_grad()
-            for idx, x, t in enumerate(pbar):  
+            for idx, (x, t) in enumerate(pbar):  
                 x = x.to(device)
                 t = t['labels'].to(device)
 
@@ -148,15 +150,15 @@ def train_one_fold(model, cfg, fold: int):
         model.eval()
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
-                for idx, (x, t, sid) in enumerate(pbar):
+                for idx, (x, t) in enumerate(pbar):
 
                     x = x.to(device)
-                    t = t.to(device)
+                    t = t['labels'].to(device)
 
                     with autocast:
                         loss = 0
-                        loss_ema = 0
                         y = model(x)
+                        N_LABELS = t.shape[-1]
                         for col in range(N_LABELS):
                             pred = y[:,col*3:col*3+3]
                             gt = t[:]
