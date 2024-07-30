@@ -1,0 +1,39 @@
+seed: 2222
+
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+
+
+dataset:
+  name: SpinalCanalStenosisCenterDataset
+  image_size: (512, 512)
+  channels: 3
+
+loss:
+  name: WeightedCrossEntropy
+
+
+model:
+  name: vision2d
+  modelname: densenet201
+  channels: 3
+  nclasses: 15
+
+opimization:
+  optimizer: AdamW
+  scheduler: CosineWithWarmup
+  learning_rate: 1.e-4
+  weight_decay: 1.e-2
+  n_cycles: 0.475
+
+training:
+  use_folds: [0, 1, 2, 3, 4]
+  use_amp: True
+  epochs: 10
+  batch_size: 32
+  grad_acc: 1
+  early_stopping: 3
+  workers: 12
+
