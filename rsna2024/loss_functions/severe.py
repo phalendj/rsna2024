@@ -35,6 +35,9 @@ class SevereLoss(_Loss):
     def __repr__(self):
         return 'SevereLoss(t=%.1f)' % self.t
 
+    def on_epoch_end(self):
+        pass
+
     def forward(self, input: dict, target: dict) -> torch.Tensor:
         """
         Args:

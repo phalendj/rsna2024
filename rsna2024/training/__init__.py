@@ -254,3 +254,5 @@ def train_one_fold(model, cfg, fold: int):
                 print('early stopping')
                 break  
 
+        criterion.on_epoch_end()
+

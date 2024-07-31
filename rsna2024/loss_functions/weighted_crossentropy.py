@@ -7,6 +7,9 @@ class WeightedCrossEntropyLoss(nn.CrossEntropyLoss):
         super().__init__(weight=torch.tensor(weights).to(device))
         self.device = device
 
+    def on_epoch_end(self):
+        pass
+
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         loss = 0
         y = input['labels']

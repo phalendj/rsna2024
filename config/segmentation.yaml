@@ -15,10 +15,8 @@ dataset:
   
 
 loss:
-  name: MixedLoss
+  name: HeatmapLoss
   patch_size: 512
-  center_change: 7
-  width_change: 1.5
 
 model:
   name: unet
@@ -39,7 +37,7 @@ optimization:
 training:
   use_folds: [0, 1, 2, 3, 4]
   use_amp: True
-  epochs: 15
+  epochs: 10
   batch_size: 32
   grad_acc: 1
   early_stopping: 3

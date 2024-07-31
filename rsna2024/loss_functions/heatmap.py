@@ -3,12 +3,15 @@ import math
 import torch
 
 class HeatmapLoss(nn.Module):
-    def __init__(self, device: str, patch_size):
+    def __init__(self, device: str, patch_size: int):
         super().__init__()
         self.device = device
         self.patch_size = patch_size
         idx_map = torch.stack([torch.arange(self.patch_size)]*self.patch_size).to(device)
         self.idx_map = torch.stack([idx_map,idx_map.T]).view(1,1,2,self.patch_size,self.patch_size)
+
+    def on_epoch_end(self):
+        pass
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         loss = 0
