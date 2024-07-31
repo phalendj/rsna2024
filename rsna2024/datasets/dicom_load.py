@@ -28,6 +28,7 @@ import pandas as pd
 import pydicom
 
 from utils import image_directory
+from datasets import create_column
 
 
 def get_study_directory(study_id):
@@ -104,7 +105,7 @@ class Series(object):
             
             self.diagnosis_coordinates = {}
             for __, row in tmp.iterrows():
-                self.diagnosis_coordinates[row.condition.lower().replace(' ', '_') + row.level.lower().replace('/','_')] = (row.x, row.y, row.z)
+                self.diagnosis_coordinates[create_column(row.condition, row.level)] = (row.x, row.y, row.z)
         
     @property
     def data(self):

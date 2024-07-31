@@ -1,8 +1,11 @@
+import logging
 import numpy as np
 import pandas as pd
 import pandas.api.types
 import sklearn.metrics
 
+
+logger = logging.getLogger(__name__)
 
 class ParticipantVisibleError(Exception):
     pass
@@ -67,7 +70,7 @@ def score(
             sample_weight=solution.loc[condition_indices, 'sample_weight'].values
         )
         condition_losses.append(condition_loss)
-        print(condition, condition_loss)
+        logger.info(f'{condition} :  {condition_loss}')
         condition_weights.append(1)
 
     any_severe_spinal_labels = pd.Series(solution.loc[solution['condition'] == 'spinal'].groupby('study_id')['severe'].max())
@@ -79,6 +82,6 @@ def score(
         sample_weight=any_severe_spinal_weights
     )
     condition_losses.append(any_severe_spinal_loss)
-    print('any_severe_spinal', any_severe_spinal_loss)
+    logger.info(f'Any_severe_spinal : {any_severe_spinal_loss}')
     condition_weights.append(any_severe_scalar)
     return np.average(condition_losses, weights=condition_weights)

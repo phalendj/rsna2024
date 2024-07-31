@@ -7,28 +7,25 @@ directories:
 
 
 dataset:
-  name: SpinalCanalStenosisCenterDataset
+  name: SegmentationSingleImageDataset
   image_size: [512, 512]
-  channels: 3
-  augmentations:
-    prob: 0.75
-    normalize: True
-    hflip: True
-    contrast: True
-    blur: True
-    distort: True
-    rotate: True
-
+  series_description: Sagittal T2/STIR
+  conditions: ['Spinal Canal Stenosis']
+  aug_size: 0.1
+  
 
 loss:
-  name: WeightedCrossEntropy
-
+  name: HeatmapLoss
+  patch_size: 512
 
 model:
-  name: vision2d
-  modelname: densenet201
-  channels: 3
+  name: unet
+  model_name: densenet201
+  encodername: resnet18
+  channels: 1
+  unet_classes: 5
   nclasses: 15
+  patch_size: 512
 
 optimization:
   optimizer: AdamW

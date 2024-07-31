@@ -7,9 +7,11 @@ directories:
 
 
 dataset:
-  name: SpinalCanalStenosisCenterDataset
+  name: SingleSeriesCenterDataset
   image_size: [512, 512]
-  channels: 3
+  channels: 5
+  series_description: Sagittal T2/STIR
+  conditions: ['Spinal Canal Stenosis']
   augmentations:
     prob: 0.75
     normalize: True
@@ -27,7 +29,7 @@ loss:
 model:
   name: vision2d
   modelname: densenet201
-  channels: 3
+  channels: 5
   nclasses: 15
 
 optimization:

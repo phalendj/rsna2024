@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 
-class SpinalCanalStenosisCenterDataset(Dataset):
-    def __init__(self, study_ids, image_size, channels, mode='train', transform=None):
+class SingleSeriesCenterDataset(Dataset):
+    def __init__(self, study_ids, image_size, channels: int, series_description: str, conditions: list[str], mode: str = 'train', transform=None):
         self.study_ids = list(study_ids)
         self.image_size = int(image_size[0]), int(image_size[1])
         self.channels = channels
@@ -32,9 +32,8 @@ class SpinalCanalStenosisCenterDataset(Dataset):
         self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
         logger.info(f'Done')
 
-        condition = [c for c in CONDITIONS if 'Spinal' in c][0]
-        self.label_columns = [create_column(condition, level=level) for level in LEVELS]
-        self.series_description = 'Sagittal T2/STIR'
+        self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
+        self.series_description = series_description
 
     @property
     def labels(self):
@@ -68,7 +67,6 @@ class SpinalCanalStenosisCenterDataset(Dataset):
                 else:
                     offset = int(diff//2)
                 data = data[offset:offset+W]
-                data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
             elif W > H:
                 diff = W-H
                 if self.mode == 'train':
