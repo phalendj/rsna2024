@@ -3,6 +3,7 @@ from tqdm import tqdm
 import math
 from pathlib import Path
 from collections import OrderedDict
+import pandas as pd
 
 import torch
 from torch.utils.data import DataLoader
@@ -15,6 +16,7 @@ from datasets import load_train_files
 from utils import relative_directory
 from datasets import factory as dsfactory
 import loss_functions as lffactory
+import loss_functions.official as officialloss
 
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,85 @@ def create_optimizer(cfg, model, nbatches):
 
     return result
 
+
+def evaluate(model, cfg):
+    df, __, __ = load_train_files(relative_directory=relative_directory)
+    # load sample submission file
+    device = 'cuda:0'
+
+    model_predictions = []
+    for fold in cfg.training.use_folds:
+        logger.info(f'Evaluating Fold {fold}')
+        output_directory = Path(HydraConfig.get().runtime.output_dir)
+        fname = output_directory / (model.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        model.load_state_dict(torch.load(fname))
+        model.to(device)
+        model.eval()
+
+        df_valid = df.loc[df.fold == fold]
+        valid_ds = dsfactory.create_dataset(study_ids=df_valid.study_id.unique(), mode='valid', cfg=cfg.dataset)
+        valid_dl = DataLoader(
+                            valid_ds,
+                            batch_size=cfg.training.batch_size,
+                            shuffle=False,
+                            pin_memory=True,
+                            drop_last=False,
+                            num_workers=cfg.training.workers
+                            )
+        autocast = torch.autocast('cuda', enabled=cfg.training.use_amp, dtype=torch.half) # you can use with T4 gpu. or newer
+        
+        label_columns = valid_ds.labels
+        N_LABELS = len(label_columns)
+        with tqdm(valid_dl, leave=True) as pbar:
+            with torch.no_grad():
+                for idx, (x, t) in enumerate(pbar):
+
+                    x = x.to(device)
+                    study_ids = t['study_id'][:, 0]
+                    
+                    with autocast:
+                        y = model(x)
+                        for col in range(N_LABELS):
+                            pred = y['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
+                            lab = label_columns[col]
+                            for i in range(len(study_ids)):
+                                row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
+                                model_predictions.append(row)
+                            
+    new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
+    
+    tmp = df.set_index('study_id').stack().reset_index(name='sample_weight').rename(columns={'level_1': 'location'})
+    tmp = tmp[~tmp.location.map(lambda s: 'stratum' in s or 'fold' in s)]
+    tmp['row_id'] = tmp.apply(lambda r: str(r.study_id) +'_' +r.location, axis=1)
+    tmp['normal_mild'] = 0
+    tmp.loc[tmp.sample_weight == 0, 'normal_mild'] = 1
+    tmp['moderate'] = 0
+    tmp.loc[tmp.sample_weight == 1, 'moderate'] = 1
+    tmp['severe'] = 0
+    tmp.loc[tmp.sample_weight == 2, 'severe'] = 1
+    tmp['sample_weight'] = tmp.sample_weight.map({0: 1, 1: 2, 2: 4, -100: 0})
+    
+    submission = tmp.copy()
+    del submission['study_id'], submission['location'], submission['sample_weight']
+    submission['normal_mild'] = 1/3.0
+    submission['moderate'] = 1/3.0
+    submission['severe'] = 1/3.0
+
+    submission = pd.concat([submission[~submission.row_id.isin(new_pred.row_id.unique())], new_pred])
+    
+    tmp_true = tmp.copy()
+    del tmp_true['study_id'], tmp_true['location']
+
+    LABELS = ['normal_mild','moderate','severe']
+    tmp_true = tmp_true.sort_values(by='row_id')
+    tmp_true = tmp_true[tmp_true[LABELS].max(axis=1) == 1].reset_index(drop=True)
+    # tmp_preds2 = tmp_preds2.sort_values(by='row_id')
+    submission = submission.sort_values(by='row_id')
+    submission = submission[submission.row_id.isin(tmp_true.row_id)].reset_index(drop=True)
+    tmp_true = tmp_true[tmp_true.row_id.isin(submission.row_id)].reset_index(drop=True)
+    scr = officialloss.score(solution=tmp_true.copy(), submission=submission.copy(), row_id_column_name='row_id', any_severe_scalar=1.0)
+    logger.info(f'Official CV score: {scr}')
 
 
 def train_one_fold(model, cfg, fold: int):
@@ -72,7 +153,7 @@ def train_one_fold(model, cfg, fold: int):
                             batch_size=cfg.training.batch_size,
                             shuffle=False,
                             pin_memory=True,
-                            drop_last=True,
+                            drop_last=False,
                             num_workers=cfg.training.workers
                             )
 
@@ -106,17 +187,10 @@ def train_one_fold(model, cfg, fold: int):
             optimizer.zero_grad()
             for idx, (x, t) in enumerate(pbar):  
                 x = x.to(device)
-                t = t['labels'].to(device)
-
                 with autocast:
-                    loss = 0
                     y = model(x)
-                    N_LABELS = t.shape[-1]
-                    for col in range(N_LABELS):
-                        pred = y[:,col*3:col*3+3]
-                        gt = t[:, col]
-                        loss = loss + criterion(pred, gt) / N_LABELS
-
+                    loss = criterion(y, t)
+                    
                     total_loss += loss.item()
                     if GRAD_ACC > 1:
                         loss = loss / GRAD_ACC
@@ -151,19 +225,10 @@ def train_one_fold(model, cfg, fold: int):
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
-
                     x = x.to(device)
-                    t = t['labels'].to(device)
-
                     with autocast:
-                        loss = 0
                         y = model(x)
-                        N_LABELS = t.shape[-1]
-                        for col in range(N_LABELS):
-                            pred = y[:,col*3:col*3+3]
-                            gt = t[:, col]
-                            loss = loss + criterion(pred, gt) / N_LABELS
-
+                        loss = criterion(y, t)
                         total_loss += loss.item()   
 
         val_loss = total_loss/len(valid_dl)

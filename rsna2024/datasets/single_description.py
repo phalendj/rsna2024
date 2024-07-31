@@ -36,6 +36,10 @@ class SpinalCanalStenosisCenterDataset(Dataset):
         self.label_columns = [create_column(condition, level=level) for level in LEVELS]
         self.series_description = 'Sagittal T2/STIR'
 
+    @property
+    def labels(self):
+        return self.label_columns
+
     def __getitem__(self, idx):
         final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
         x = np.zeros(final_size, dtype=np.uint8)
@@ -89,6 +93,7 @@ class SpinalCanalStenosisCenterDataset(Dataset):
                 
         target = {}
         target['labels'] = torch.tensor(label)
+        target['study_id'] = torch.tensor([study.study_id])
 
         return torch.tensor(x, dtype=torch.float) / 255.0, target
 

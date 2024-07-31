@@ -22,24 +22,30 @@ class SevereLoss(_Loss):
     criterion = SevereLoss()     # you can replace nn.CrossEntropyLoss
     loss = criterion(y_pred, y)
     """
-    def __init__(self, temperature: float = 1.0, weights: Sequence[float] = np.array([6.084050632911392, 12.962531645569621, 14.38632911392405, 1.729113924050633])):
+    def __init__(self, device: str, temperature: float = 1.0, weights: Sequence[float] = np.array([6.084050632911392, 12.962531645569621, 14.38632911392405, 1.729113924050633])):
         """
         Use max if temperature = 0
         """
         super().__init__()
         self.t = temperature
         self.weights = weights
+        self.device = device
         assert self.t >= 0
     
     def __repr__(self):
         return 'SevereLoss(t=%.1f)' % self.t
 
-    def forward(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: dict, target: dict) -> torch.Tensor:
         """
         Args:
           y_pred (Tensor[float]): logit             (batch_size, 3, 25)
           y      (Tensor[int]):   true label index  (batch_size, 25)
         """
+        B = len(input['labels'])
+        y_pred = input['labels'].reshape(B, 25, 3)
+        y_pred.transpose(2, 1)
+        y = target['labels'].to(self.device)
+
         assert y_pred.size(0) == y.size(0)
         assert y_pred.size(1) == 3 and y_pred.size(2) == 25
         assert y.size(1) == 25

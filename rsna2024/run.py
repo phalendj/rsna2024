@@ -26,6 +26,9 @@ def run(cfg: DictConfig) -> None:
         model = models.create_model(cfg=cfg.model)
         training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
+    model = models.create_model(cfg=cfg.model)
+    training.evaluate(model, cfg=cfg)
+
 
 if __name__ == '__main__':
     log_filename = f"rsna{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.log"
