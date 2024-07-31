@@ -31,5 +31,6 @@ class UNet(nn.Module):
 
         Y = torch.concat([X + x[:, i].unsqueeze(1) for i in range(x.shape[1])], dim=1).to(X.device)
         y = self.classifier(Y)
+        y['masks'] = x
 
-        return {'masks': x, 'labels': y}
+        return y

@@ -3,8 +3,8 @@ import logging
 import torch
 import torch.nn as nn
 
-import heatmap
-import weighted_crossentropy
+from . import heatmap
+from . import weighted_crossentropy
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class MixedLoss(nn.Module):
     def on_epoch_end(self):
         self.epoch += 1
         # Fermi Function turn on
-        self.heatmap_weight = torch.tensor([1.0/(1.0+torch.exp(self.epoch - self.center_change)/self.width_change)]).to(self.device)
+        self.heatmap_weight = torch.tensor(1.0/(1.0+torch.exp(torch.tensor((self.epoch - self.center_change)/self.width_change)))).to(self.device)
 
         logger.info(f'Adjusting Heatmap weight for {self.epoch} to {self.heatmap_weight.cpu().item()}')
 
