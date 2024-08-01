@@ -5,9 +5,14 @@ import cv2
 import torch
 from torch.utils.data import Dataset
 
-from utils import relative_directory
-from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
-from datasets.dicom_load import Study
+try:
+    from utils import relative_directory
+    from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
+    from datasets.dicom_load import Study
+except ImportError:
+    from ..utils import relative_directory
+    from ..datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
+    from .dicom_load import Study
 
 logger = logging.getLogger(__name__)
 

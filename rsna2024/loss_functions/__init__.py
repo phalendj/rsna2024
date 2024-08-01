@@ -1,7 +1,7 @@
-import loss_functions.severe as severe
-import loss_functions.heatmap as heatmap
-import loss_functions.mixed as mixedloss
-import loss_functions.weighted_crossentropy as weighted_crossentropy
+from . import severe as severe
+from . import heatmap as heatmap
+from . import mixed as mixedloss
+from . import weighted_crossentropy as weighted_crossentropy
 
 
 def create_loss(cfg, device):

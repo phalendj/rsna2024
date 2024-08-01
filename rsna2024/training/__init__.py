@@ -8,15 +8,23 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from transformers import get_cosine_schedule_with_warmup
 
 from hydra.core.hydra_config import HydraConfig
 
-from datasets import load_train_files
-from utils import relative_directory
-from datasets import factory as dsfactory
-import loss_functions as lffactory
-import loss_functions.official as officialloss
+try:
+    from datasets import load_train_files
+    from utils import relative_directory
+    from datasets import factory as dsfactory
+    import loss_functions as lffactory
+    import loss_functions.official as officialloss
+except:
+    from ..datasets import load_train_files
+    from ..utils import relative_directory
+    from ..datasets import factory as dsfactory
+    from .. import loss_functions as lffactory
+    from ..loss_functions import official as officialloss
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +40,7 @@ def create_optimizer(cfg, model, nbatches):
         result['optimizer'] = optimizer
 
     if opt_cfg.scheduler == 'CosineWithWarmup':
-        warmup_steps = epochs/10 * nbatches // grad_acc
+        warmup_steps = nbatches // grad_acc
         num_total_steps = epochs * nbatches // grad_acc
 
         scheduler = get_cosine_schedule_with_warmup(optimizer,
@@ -52,7 +60,10 @@ def evaluate(model, cfg):
     model_predictions = []
     for fold in cfg.training.use_folds:
         logger.info(f'Evaluating Fold {fold}')
-        output_directory = Path(HydraConfig.get().runtime.output_dir)
+        try:
+            output_directory = Path(HydraConfig.get().runtime.output_dir)
+        except ValueError:
+            output_directory = Path(cfg.load_directory)
         fname = output_directory / (model.name() + f'_fold{fold}.pth')
         logger.info(f'Loading Model from {fname}')
         model.load_state_dict(torch.load(fname))

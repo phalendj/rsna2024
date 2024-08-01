@@ -33,14 +33,13 @@ loss:
   # width_change: 1.5
 
 model:
-  name: unetpreloadzoom
+  name: unetpreload
   model_name: densenet201
   encodername: resnet18
   channels: 5
   unet_classes: 5
   nclasses: 15
   patch_size: 512
-  subsize: 64
   preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/12-16-21/
 
 optimization:

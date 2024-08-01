@@ -27,8 +27,12 @@ import pandas as pd
 
 import pydicom
 
-from utils import image_directory
-from datasets import create_column
+try:
+    from utils import image_directory
+    from datasets import create_column
+except ImportError:
+    from ..utils import image_directory
+    from ..datasets import create_column
 
 
 def get_study_directory(study_id):

@@ -23,10 +23,10 @@ def run(cfg: DictConfig) -> None:
     # torch.set_float32_matmul_precision('high')
     for fold in cfg.training.use_folds:
         logger.info(f'Run Fold {fold}')
-        model = models.create_model(cfg=cfg.model)
+        model = models.create_model(cfg=cfg.model, fold=fold)
         training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
-    model = models.create_model(cfg=cfg.model)
+    model = models.create_model(cfg=cfg.model, fold=0)
     training.evaluate(model, cfg=cfg)
 
 

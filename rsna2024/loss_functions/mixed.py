@@ -2,6 +2,7 @@ from typing import Sequence
 import logging
 import torch
 import torch.nn as nn
+import scipy.stats as sps
 
 from . import heatmap
 from . import weighted_crossentropy
@@ -19,17 +20,15 @@ class MixedLoss(nn.Module):
         self.heatmap_loss = heatmap.HeatmapLoss(device=device, patch_size=patch_size)
         self.wce_loss = weighted_crossentropy.WeightedCrossEntropyLoss(device=device, weights=weights)
 
-        self.heatmap_weight = torch.tensor([1.0]).to(device)
         self.epoch = 0
 
     def on_epoch_end(self):
         self.epoch += 1
-        # Fermi Function turn on
-        self.heatmap_weight = torch.tensor(1.0/(1.0+torch.exp(torch.tensor((self.epoch - self.center_change)/self.width_change)))).to(self.device)
-
-        logger.info(f'Adjusting Heatmap weight for {self.epoch} to {self.heatmap_weight.cpu().item()}')
-
+        
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        loss = self.heatmap_loss(input, target) * self.heatmap_weight + self.wce_loss(input, target)*(1.0-self.heatmap_weight)
-        return loss
+        if self.epoch < self.center_change:
+            return self.heatmap_loss(input, target)
+        else:
+            return self.wce_loss(input, target)
+        
