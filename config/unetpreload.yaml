@@ -12,7 +12,7 @@ dataset:
   series_description: Sagittal T2/STIR
   conditions: ['Spinal Canal Stenosis']
   channels: 5
-  aug_size: 0.10
+  aug_size: 0.1
   augmentations:
     prob: 0.75
     normalize: True
@@ -33,20 +33,19 @@ loss:
   # width_change: 1.5
 
 model:
-  name: unetpreloadzoom
+  name: unetpreload
   model_name: densenet201
-  encodername: resnet34
+  encodername: resnet18
   channels: 5
   unet_classes: 5
   nclasses: 15
   patch_size: 512
-  subsize: 64
-  preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/15-48-48/
+  preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/12-16-21/
 
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 0.3e-4
+  learning_rate: 1.e-4
   weight_decay: 1.e-2
   n_cycles: 0.475
 

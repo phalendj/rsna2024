@@ -29,26 +29,6 @@ def rotate_image(image, angle, interpolation=cv2.INTER_LANCZOS4):
 
 
 def augment_image_and_centers(image,centers,alpha):
-    '''
-    # Randomly flip the image horizontally.
-    if random.random() > .5:
-      if random.random() > 1 - alpha:
-        image = image.flip(-1)
-        centers[:,0] = PATCH_SIZE - centers[:,0]
-    # Randomly flip the image vertically.
-    if random.random() > 0.5:
-      if random.random() > 1 - alpha:
-        image = image.flip(-2)
-        centers[:,1] = PATCH_SIZE - centers[:,1]
-  
-    if random.random() > 1 - alpha:
-      if random.random() > .5:
-    #   Randomly flip the image
-    #   Wich axis?
-        axis = np.random.randint(2)
-        image = image.flip(axis+1)
-        centers[:,-1-axis] = PATCH_SIZE - centers[:,-1-axis]
-    '''
 #   Randomly rotate the image.
     shp = image.shape
     if len(shp) == 3:
@@ -58,6 +38,16 @@ def augment_image_and_centers(image,centers,alpha):
         D = 1
     assert H == W
     PATCH_SIZE = H
+
+    ## These augmentations do terribly on predicting the location of the spinal columns - It does rely on top and bottom of image
+    # if random.random() > .5:
+    #     image = np.flip(image, axis=1)
+    #     centers[:,0] = PATCH_SIZE - centers[:,0]
+    # # Randomly flip the image vertically.
+    # if random.random() > 0.5:
+    #     image = np.flip(image, axis=0)
+    #     centers[:,1] = PATCH_SIZE - centers[:,1]
+
 
     angle = random.uniform(-180, 180)*alpha
     image = rotate_image(image, angle, interpolation=cv2.INTER_LANCZOS4 if D <= 3 else cv2.INTER_LINEAR)

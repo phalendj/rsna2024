@@ -92,7 +92,7 @@ class UNetPreloadZoom(nn.Module):
         self.classifier = vision2d.RSNA24Model(model_name=classifier_name, in_c=in_channels, n_classes=3)
 
     def name(self):
-        return f'unetzoom_{self.encoder_name}_{self.classifier.name()}'
+        return f'unetzoom_{self.UNet.encoder_name}_{self.classifier.name()}'
 
     def get_zoom(self, mask, x):
         coord = torch.argwhere(mask > 0.9).float().mean(dim=0).long()
@@ -108,6 +108,6 @@ class UNetPreloadZoom(nn.Module):
         X2 = torch.stack(sum([[self.get_zoom(masks[i, j], X[i]) for j in range(M)] for i in range(B)],[]), dim=0)
         pred2 = self.classifier(X2)
 
-        y['labels'] = pred2.reshape(B, -1)
+        y['labels'] = pred2['labels'].reshape(B, -1)
 
         return y

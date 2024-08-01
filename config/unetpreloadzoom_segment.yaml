@@ -24,16 +24,16 @@ dataset:
   
 
 loss:
-  name: WeightedCrossEntropy
-  # name: HeatmapLoss
-  # patch_size: 512
+  # name: WeightedCrossEntropy
+  name: HeatmapLoss
+  patch_size: 512
   # name: MixedLoss
   # patch_size: 512
   # center_change: 7
   # width_change: 1.5
 
 model:
-  name: unetpreloadzoom
+  name: unet
   model_name: densenet201
   encodername: resnet34
   channels: 5
@@ -46,14 +46,14 @@ model:
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 0.3e-4
+  learning_rate: 1.0e-4
   weight_decay: 1.e-2
   n_cycles: 0.475
 
 training:
   use_folds: [0, 1, 2, 3, 4]
   use_amp: True
-  epochs: 10
+  epochs: 20
   batch_size: 32
   grad_acc: 1
   early_stopping: 10
