@@ -65,13 +65,14 @@ class TDCNNModel(nn.Module):
     
 
 class TDCNNUNetPreloadZoom(nn.Module):
-    def __init__(self, in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes, subsize: int, load_dir: str, fold: int):
+    def __init__(self, in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes, subsize: int, load_dir: str, fold: int, predict_classes: int = 3):
         super(TDCNNUNetPreloadZoom, self).__init__()
         self.unet_in_channels = in_channels
         self.UNet = unet.UNetPreload(in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes, load_dir, fold)
         
         self.subsize = subsize
-        self.classifier = TDCNNModel(model_name=classifier_name, img_size=(subsize, subsize), in_c=1, n_classes=3)
+        self.predict_classes = predict_classes
+        self.classifier = TDCNNModel(model_name=classifier_name, img_size=(subsize, subsize), in_c=1, n_classes=predict_classes)
 
     def name(self):
         return f'tdcnn_unetzoom_{self.UNet.encoder_name}_{self.classifier.name()}'
@@ -97,5 +98,52 @@ class TDCNNUNetPreloadZoom(nn.Module):
         pred2 = self.classifier(X2)
 
         y['labels'] = pred2['labels'].reshape(B, -1)
+
+        return y
+    
+
+class DoubleTDCNNUNetPreloadZoom(nn.Module):
+    def __init__(self, in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes, subsize: int, load_dir: str, fold: int, condition: str = 'spinal'):
+        super(DoubleTDCNNUNetPreloadZoom, self).__init__()
+        self.unet_in_channels = in_channels
+        self.UNet = unet.UNetPreload(in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes, load_dir, fold)
+        
+        self.subsize = subsize
+        self.condition = condition
+        self.predict_classes = 3 if condition == 'spinal' else 6
+        self.classifier = TDCNNModel(model_name=classifier_name, img_size=(subsize, subsize), in_c=1, n_classes=self.predict_classes)
+
+    def name(self):
+        return f'tdcnn_unetzoom_{self.UNet.encoder_name}_{self.classifier.name()}'
+
+    def get_zoom(self, mask, x):
+        coord = torch.argwhere(mask > 0.9).float().mean(dim=0).long()
+        if self.training:
+            coord[0] += np.random.randint(-10, 11)
+            coord[1] += np.random.randint(-10, 11)
+        X, Y = torch.clip(coord, self.subsize, self.UNet.patch_size - self.subsize)
+        return x[:, (X-self.subsize):(X+self.subsize), (Y-self.subsize):(Y+self.subsize)]
+
+    def forward(self,X):
+        # X is B, I, H, W, need to trim to middle channels for UNet
+        i0 = (X.shape[1] - self.unet_in_channels) // 2
+
+        y = self.UNet(X[:, i0:i0+self.unet_in_channels])
+        masks = y['masks']
+        B = X.shape[0]
+        M = masks.shape[1]
+
+        X2 = torch.stack(sum([[self.get_zoom(masks[i, j], X[i]) for j in range(M)] for i in range(B)],[]), dim=0)  # reshapes batch index to B*Mask number, which is number of levels
+        pred2 = self.classifier(X2)
+
+        if self.condition == 'spinal':
+            y['labels'] = pred2['labels'].reshape(B, -1)
+        elif self.condition == 'foraminal':
+            t = pred2['labels'].reshape(B, -1, self.predict_classes)
+            t = (t[:, :5, :] + t[:, 5:, :]) * 0.5
+            y['labels'] = torch.concat([t[:, :, :3].flatten(1), t[:, :, 3:].flatten(1)], dim=1)
+        else:
+            raise NotImplementedError
+
 
         return y

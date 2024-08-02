@@ -1,0 +1,57 @@
+seed: 2222
+
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+
+
+dataset:
+  name: SegmentationCenterDataset
+  image_size: [512, 512]
+  series_description: Sagittal T1
+  conditions: ['Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing',]
+  channels: 7
+  aug_size: 0.10
+  augmentations:
+    prob: 0.75
+    normalize: True
+    hflip: False
+    contrast: True
+    blur: True
+    distort: True
+    rotate: False
+  
+
+loss:
+  # name: WeightedCrossEntropy
+  name: HeatmapLoss
+  patch_size: 512
+  
+model:
+  name: unet
+  model_name: densenet201
+  encodername: resnet34
+  channels: 7
+  unet_classes: 10
+  nclasses: 30
+  patch_size: 512
+  # subsize: 64
+  # preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/15-48-48/
+
+optimization:
+  optimizer: AdamW
+  scheduler: CosineWithWarmup
+  learning_rate: 1.0e-4
+  weight_decay: 1.e-2
+  n_cycles: 0.475
+
+training:
+  use_folds: [0, 1, 2, 3, 4]
+  use_amp: True
+  epochs: 10
+  batch_size: 32
+  grad_acc: 1
+  early_stopping: 10
+  workers: 12
+

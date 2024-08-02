@@ -23,9 +23,9 @@ class HeatmapLoss(nn.Module):
         s2 = torch.as_tensor([H/8]*CH)
         A = -1/(2*s2).to(self.device)
         K = 1/torch.sqrt(2*math.pi*s2).to(self.device)
-        mask_pred = mask_pred*K.view(1,5,1,1)
-        mask = self.idx_map - mask_true.view(-1,5,2,1,1)
-        mask = torch.exp((A.view(-1,5,1,1,1)*mask*mask).sum(2))*K.view(-1,5,1,1)
+        mask_pred = mask_pred*K.view(1,CH,1,1)
+        mask = self.idx_map - mask_true.view(-1,CH,2,1,1)
+        mask = torch.exp((A.view(-1,CH,1,1,1)*mask*mask).sum(2))*K.view(-1,CH,1,1)
 
         D = 1 - ((mask*mask_pred).sum())**2/((mask*mask).sum()*(mask_pred*mask_pred).sum())
         

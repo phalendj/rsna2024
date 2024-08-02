@@ -19,6 +19,7 @@ class UNet(nn.Module):
             in_channels=in_channels
         )
         self.encoder_name = encoder_name
+        self.out_classes = out_classes
 
         final_channels = out_classes + in_channels
         self.classifier_classes = classifier_classes
@@ -30,8 +31,8 @@ class UNet(nn.Module):
     def forward(self,X):
         x = self.UNet(X)
 #       MinMaxScaling along the class plane to generate a heatmap
-        min_values = x.view(-1,5,self.patch_size*self.patch_size).min(-1)[0].view(-1,5,1,1) # Bug, I've been MinMaxScaling with the wrong values
-        max_values = x.view(-1,5,self.patch_size*self.patch_size).max(-1)[0].view(-1,5,1,1)
+        min_values = x.view(-1,5,self.patch_size*self.patch_size).min(-1)[0].view(-1,self.out_classes,1,1) # Bug, I've been MinMaxScaling with the wrong values
+        max_values = x.view(-1,5,self.patch_size*self.patch_size).max(-1)[0].view(-1,self.out_classes,1,1)
         x = (x - min_values)/(max_values - min_values)
 
         Y = torch.concat([X, x], dim=1).to(X.device)
@@ -52,6 +53,7 @@ class UNetPreload(nn.Module):
             in_channels=in_channels
         )
         self.encoder_name = encoder_name
+        self.out_classes = out_classes
 
         final_channels = out_classes + in_channels
         self.classifier_classes = classifier_classes
@@ -73,8 +75,8 @@ class UNetPreload(nn.Module):
     def forward(self,X):
         x = self.UNet(X)
 #       MinMaxScaling along the class plane to generate a heatmap
-        min_values = x.view(-1,5,self.patch_size*self.patch_size).min(-1)[0].view(-1,5,1,1) # Bug, I've been MinMaxScaling with the wrong values
-        max_values = x.view(-1,5,self.patch_size*self.patch_size).max(-1)[0].view(-1,5,1,1)
+        min_values = x.view(-1,5,self.patch_size*self.patch_size).min(-1)[0].view(-1,self.out_classes,1,1) # Bug, I've been MinMaxScaling with the wrong values
+        max_values = x.view(-1,5,self.patch_size*self.patch_size).max(-1)[0].view(-1,self.out_classes,1,1)
         x = (x - min_values)/(max_values - min_values)
 
         Y = torch.concat([X, x], dim=1).to(X.device)
