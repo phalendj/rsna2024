@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import torch.nn as nn
 import segmentation_models_pytorch as smp
+import numpy as np
 from . import vision2d
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,9 @@ class UNetPreloadZoom(nn.Module):
 
     def get_zoom(self, mask, x):
         coord = torch.argwhere(mask > 0.9).float().mean(dim=0).long()
+        if self.training:
+            coord[0] += np.random.randint(-10, 11)
+            coord[1] += np.random.randint(-10, 11)
         X, Y = torch.clip(coord, self.subsize, self.UNet.patch_size - self.subsize)
         return x[:, (X-self.subsize):(X+self.subsize), (Y-self.subsize):(Y+self.subsize)]
 
