@@ -242,10 +242,16 @@ class SegmentationCenterDataset(Dataset):
             centers[:,1] = centers[:,1]*self.image_size[1]/H
 
             # Select the middle portion number of channels
-            i0 = int((D - self.channels) // 2)
-            for i in range(self.channels):
-                j = i0 + i
-                x[..., i] = data[..., j]
+            if D >= self.channels:
+                i0 = int((D - self.channels) // 2)
+                for i in range(self.channels):
+                    j = i0 + i
+                    x[..., i] = data[..., j]
+            else:
+                i0 = int((self.channels - D) // 2)
+                for i in range(D):
+                    j = i0 + i
+                    x[..., j] = data[..., i]
 
             if self.transform is not None:
                 x = self.transform(image=x)['image']
