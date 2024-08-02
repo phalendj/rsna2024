@@ -9,8 +9,8 @@ directories:
 dataset:
   name: SegmentationCenterDataset
   image_size: [512, 512]
-  series_description: Sagittal T2/STIR
-  conditions: ['Spinal Canal Stenosis']
+  series_description: Sagittal T1
+  conditions: ['Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing',]
   channels: 15
   aug_size: 0.10
   augmentations:
@@ -27,26 +27,23 @@ loss:
   name: WeightedCrossEntropy
   # name: HeatmapLoss
   # patch_size: 512
-  # name: MixedLoss
-  # patch_size: 512
-  # center_change: 7
-  # width_change: 1.5
-
+  
 model:
-  name: tdcnnunetpreloadzoom
+  name: doubletdcnnunetpreloadzoom
   model_name: densenet201
   encodername: resnet34
-  channels: 5
-  unet_classes: 5
-  nclasses: 15
+  channels: 7
+  unet_classes: 10
+  nclasses: 30
   patch_size: 512
   subsize: 64
-  preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/15-48-48/
+  preload: /home/phalendj/code/rsna2024/outputs/2024-08-02/12-57-24/
+  condition: foraminal
 
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 0.5e-4
+  learning_rate: 3.0e-5
   weight_decay: 1.e-2
   n_cycles: 0.475
 
@@ -56,6 +53,6 @@ training:
   epochs: 10
   batch_size: 8
   grad_acc: 1
-  early_stopping: 10
+  early_stopping: 3
   workers: 12
 
