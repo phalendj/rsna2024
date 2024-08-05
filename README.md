@@ -11,9 +11,13 @@ poetry run python rsna2024/run.py --config-name=<config name>.yaml
 ```
 
 ## CV Results for config combo
-```
-Keep track of current CV score with config combination to compare runs
-```
 
+| Config 1 Name | Config 2 Name | CV Result |
+|---------------|---------------|-----------|
+|               |               |           |
+|               |               |           |
+|               |               |           |
+
+Keep track of current CV score with config combination to compare runs
 
 
