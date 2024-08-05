@@ -50,6 +50,7 @@ def augment_image_and_centers(image,centers,alpha):
 
 
     angle = random.uniform(-180, 180)*alpha
+    #TODO: We can rotate channel by channel to use the better interpolation
     image = rotate_image(image, angle, interpolation=cv2.INTER_LANCZOS4 if D <= 3 else cv2.INTER_LINEAR)
 #   https://discuss.pytorch.org/t/rotation-matrix/128260
     angle = torch.tensor(-angle*math.pi/180)

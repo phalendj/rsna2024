@@ -1,6 +1,11 @@
 import pandas as pd
+import logging
+
 
 pd.set_option("future.no_silent_downcasting", True)
+
+
+logger = logging.getLogger(__name__)
 
 
 CONDITIONS = [
@@ -21,6 +26,55 @@ LEVELS = [
 
 LABEL2ID = {'Normal/Mild': 0, 'Moderate':1, 'Severe':2}
 ID2LABEL = {0: 'Normal/Mild', 1: 'Moderate', 2: 'Severe'}
+
+def clean_coordinates(dfc):
+    """
+    Removes 17 bad points, all from the Spinal Canal Stenosis diagnosis
+    """
+    bad_ones = []
+    for (study_id, series_id, condition), gdf in dfc.groupby(['study_id', 'series_id', 'condition']):
+        if condition == 'Spinal Canal Stenosis':
+            gdf = gdf.sort_values('level')
+            m = gdf.x.median()
+            if gdf.x.min() < m - 100.0:
+                lev = gdf[gdf.x < m - 100].level.iloc[0]
+                bad_ones.append((study_id, series_id, lev))
+                
+                # break
+            elif gdf.x.max() > m + 100.0:
+                lev = gdf[gdf.x > m + 100].level.iloc[0]
+                bad_ones.append((study_id, series_id, lev))
+                
+            elif not gdf.y.is_monotonic_increasing:
+                print('Y not monotonic ascending')
+                for i in range(1, len(gdf)):
+                    if gdf.y.iloc[i-1] > gdf.y.iloc[i]:
+                        lev = gdf.level.iloc[i]
+                bad_ones.append((study_id, series_id, lev))
+        if condition == 'Left Neural Foraminal Narrowing' or condition == 'Right Neural Foraminal Narrowing':
+            gdf = gdf.sort_values('level')
+            m = gdf.x.median()
+            if gdf.x.min() < m - 100.0:
+                print('Min Value is off')
+                lev = gdf[gdf.x < m - 100].level.iloc[0]
+                bad_ones.append((study_id, series_id, lev))
+                # break
+            elif gdf.x.max() > m + 100.0:
+                print('Max Value is off')
+                lev = gdf[gdf.x > m + 100].level.iloc[0]
+                bad_ones.append((study_id, series_id, lev))
+            elif not gdf.y.is_monotonic_increasing:
+                print('Y not monotonic ascending')
+                for i in range(1, len(gdf)):
+                    if gdf.y.iloc[i-1] > gdf.y.iloc[i]:
+                        lev = gdf.level.iloc[i]
+                bad_ones.append((study_id, series_id, lev))
+    #     if condition == 'Left Subarticular Stenosis' or condition == 'Right Subarticular Stenosis':
+    #         display(gdf)
+    #         break
+    return dfc[~dfc.apply(lambda row: (row.study_id, row.series_id, row.level) in set(bad_ones), axis=1)].copy()
+            
+            
 
 
 def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -49,6 +103,9 @@ def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFram
 
     dfd = dfd[~dfd.series_id.isin(bad_series_ids)]
     dfc = dfc[~dfc.series_id.isin(bad_series_ids)]
+
+    # remove coordinates that are way off:
+    dfc = clean_coordinates(dfc)
 
     return df, dfc, dfd
 
