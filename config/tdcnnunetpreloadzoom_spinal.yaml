@@ -46,7 +46,7 @@ model:
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 1.0e-4   # Should lower this to better train the model  0.25 for sure would be good.
+  learning_rate: 0.3e-4   # Should lower this to better train the model  0.25 for sure would be good.
   weight_decay: 1.e-2
   n_cycles: 0.475
 
@@ -56,6 +56,6 @@ training:
   epochs: 10
   batch_size: 8  # Had to lower batch size for memory
   grad_acc: 1
-  early_stopping: 10
+  early_stopping: 3
   workers: 12
 

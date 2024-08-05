@@ -87,18 +87,25 @@ def evaluate(model, cfg):
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
-
-                    x = x.to(device)
+                    if isinstance(x, tuple):
+                        x1, x2, x3 = x
+                        x1 = x1.to(device)
+                        x2 = x2.to(device)
+                        x3 = x3.to(device)
+                        with autocast:
+                            y = model(x1, x2, x3)
+                    else:
+                        x = x.to(device)
+                        with autocast:
+                            y = model(x)
                     study_ids = t['study_id'][:, 0]
                     
-                    with autocast:
-                        y = model(x)
-                        for col in range(N_LABELS):
-                            pred = y['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
-                            lab = label_columns[col]
-                            for i in range(len(study_ids)):
-                                row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
-                                model_predictions.append(row)
+                    for col in range(N_LABELS):
+                        pred = y['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
+                        lab = label_columns[col]
+                        for i in range(len(study_ids)):
+                            row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
+                            model_predictions.append(row)
                             
     new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
     
@@ -197,14 +204,26 @@ def train_one_fold(model, cfg, fold: int):
         with tqdm(train_dl, leave=True) as pbar:
             optimizer.zero_grad()
             for idx, (x, t) in enumerate(pbar):  
-                x = x.to(device)
-                with autocast:
-                    y = model(x)
-                    loss = criterion(y, t)
-                    
-                    total_loss += loss.item()
-                    if GRAD_ACC > 1:
-                        loss = loss / GRAD_ACC
+                if isinstance(x, tuple):
+                    x1, x2, x3 = x
+                    x1 = x1.to(device)
+                    x2 = x2.to(device)
+                    x3 = x3.to(device)
+                    with autocast:
+                        y = model(x1, x2, x3)
+                        loss = criterion(y, t)
+                        total_loss += loss.item()   
+                        if GRAD_ACC > 1:
+                            loss = loss / GRAD_ACC
+                else:
+                    x = x.to(device)
+                    with autocast:
+                        y = model(x)
+                        loss = criterion(y, t)
+                        
+                        total_loss += loss.item()
+                        if GRAD_ACC > 1:
+                            loss = loss / GRAD_ACC
 
                 if not math.isfinite(loss):
                     print(f"Loss is {loss}, stopping training")
@@ -236,11 +255,21 @@ def train_one_fold(model, cfg, fold: int):
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
-                    x = x.to(device)
-                    with autocast:
-                        y = model(x)
-                        loss = criterion(y, t)
-                        total_loss += loss.item()   
+                    if isinstance(x, tuple):
+                        x1, x2, x3 = x
+                        x1 = x1.to(device)
+                        x2 = x2.to(device)
+                        x3 = x3.to(device)
+                        with autocast:
+                            y = model(x1, x2, x3)
+                            loss = criterion(y, t)
+                            total_loss += loss.item()   
+                    else:
+                        x = x.to(device)
+                        with autocast:
+                            y = model(x)
+                            loss = criterion(y, t)
+                            total_loss += loss.item()   
 
         val_loss = total_loss/len(valid_dl)
         print(f'val_loss:{val_loss:.6f}')

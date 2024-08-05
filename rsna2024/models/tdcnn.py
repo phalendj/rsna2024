@@ -1,6 +1,7 @@
 import timm
 import logging
 import numpy as np
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -48,21 +49,98 @@ class TDCNNModel(nn.Module):
         for parameters in self.feature_model.parameters():
             parameters.requires_grad = True
 
-
     def name(self):
         return f'td_cnn_{self.model_name}'
 
-    def forward(self, x):
-        # x.shape = B, I, H, W, 
+    def forward_features(self, x):
         B, I, H, W = x.shape
         x = x.unsqueeze(2).flatten(0,1)
         y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
         y = self.pool(y).flatten(1)  # B*I, D
         y = y.reshape(B, I, -1)
         y = self.encoder(y)  # B, I, 1024
+        #TODO: Try different pooling methods: avg, max, catavgmax
         y = F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        return y
+
+    def forward(self, x):
+        y = self.forward_features(x)
         return {'labels': self.classifier(y)}
     
+class TDCNNLevelModel(TDCNNModel):
+    def level_forward_features(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 1)
+        t = super().forward(x)
+        y = t['labels']
+        # y.shape = B*L, nclasses
+        y = y.reshape(B, L, -1)
+        return y
+
+    def name(self):
+        return f'td_cnn_level_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname))
+
+    def freeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+
+    def unfreeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def forward(self, x):
+        y = self.level_forward_features(x)
+        y = y.transpose(1,2).flatten(1)
+        return {'labels': y}
+    
+
+class FusedTDCNNLevelModel(nn.Module):
+    def __init__(self, model_name: str, 
+                 sagittal_t2_model: str,
+                 sagittal_t1_model: str,
+                 axial_t2_model: str,
+                 fold: int,
+                 img_size: tuple[int, int], 
+                 in_c: int = 1, 
+                 n_classes: int = 3, 
+                 num_layers: int = 4
+                 ):
+        super().__init__()
+        self.sagittal_t2 = TDCNNLevelModel(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers)
+        self.sagittal_t1 = TDCNNLevelModel(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers)
+        self.axial_t2 = TDCNNLevelModel(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers)
+
+        self.sagittal_t2.load(sagittal_t2_model, fold)
+        self.sagittal_t1.load(sagittal_t1_model, fold)
+        self.axial_t2.load(axial_t2_model, fold)
+
+        self.classifier = nn.LazyLinear(n_classes)
+
+    def freeze_vision(self):
+        self.sagittal_t2.freeze_vision()
+        self.sagittal_t1.freeze_vision()
+        self.axial_t2.freeze_vision()
+        
+    def unfreeze_vision(self):
+        self.sagittal_t2.unfreeze_vision()
+        self.sagittal_t1.unfreeze_vision()
+        self.axial_t2.unfreeze_vision()
+        
+    def forward(self, x1, x2, x3):
+        y1 = self.sagittal_t2.level_forward_features(x1)
+        y2 = self.sagittal_t1.level_forward_features(x2)
+        y3 = self.axial_t2.level_forward_features(x3)
+
+        y = torch.concat([y1, y2, y3], dim=2)
+        y = self.classifier(y)
+        y = y.transpose(1,2).flatten(1)
+        return {'labels': y}
+
 
 class TDCNNUNetPreloadZoom(nn.Module):
     def __init__(self, in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes, subsize: int, load_dir: str, fold: int, predict_classes: int = 3):

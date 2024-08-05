@@ -7,12 +7,12 @@ directories:
 
 
 dataset:
-  name: SegmentationCenterDataset
+  name: LevelCubeDataset
   image_size: [512, 512]
   series_description: Sagittal T1
-  conditions: ['Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing',]
+  conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
   channels: 15
-  aug_size: 0.10
+  subsize: 64
   augmentations:
     prob: 0.75
     normalize: True
@@ -29,21 +29,16 @@ loss:
   # patch_size: 512
   
 model:
-  name: doubletdcnnunetpreloadzoom
-  model_name: densenet201
-  encodername: resnet34
-  channels: 7
-  unet_classes: 10
-  nclasses: 30
-  patch_size: 512
+  name: tdcnnlevel
+  model_name: densenet121
+  nclasses: 15
   subsize: 64
-  preload: /home/phalendj/code/rsna2024/outputs/2024-08-02/12-57-24/
-  condition: foraminal
+  num_layers: 4
 
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 3.0e-5
+  learning_rate: 1.0e-4
   weight_decay: 1.e-2
   n_cycles: 0.475
 
@@ -51,7 +46,7 @@ training:
   use_folds: [0, 1, 2, 3, 4]
   use_amp: True
   epochs: 10
-  batch_size: 8
+  batch_size: 16
   grad_acc: 1
   early_stopping: 3
   workers: 12

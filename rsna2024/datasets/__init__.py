@@ -46,25 +46,24 @@ def clean_coordinates(dfc):
                 bad_ones.append((study_id, series_id, lev))
                 
             elif not gdf.y.is_monotonic_increasing:
-                print('Y not monotonic ascending')
                 for i in range(1, len(gdf)):
                     if gdf.y.iloc[i-1] > gdf.y.iloc[i]:
                         lev = gdf.level.iloc[i]
                 bad_ones.append((study_id, series_id, lev))
+
+        ## TODO: For Foraminal Narrowing, we don't see random points, but we do see a lot of issues where the left and right levels are off by 1.  Not sure how to clean these up
+        ## We should also ensure the left and right points are on the left and right of the images
         if condition == 'Left Neural Foraminal Narrowing' or condition == 'Right Neural Foraminal Narrowing':
             gdf = gdf.sort_values('level')
             m = gdf.x.median()
             if gdf.x.min() < m - 100.0:
-                print('Min Value is off')
                 lev = gdf[gdf.x < m - 100].level.iloc[0]
                 bad_ones.append((study_id, series_id, lev))
                 # break
             elif gdf.x.max() > m + 100.0:
-                print('Max Value is off')
                 lev = gdf[gdf.x > m + 100].level.iloc[0]
                 bad_ones.append((study_id, series_id, lev))
             elif not gdf.y.is_monotonic_increasing:
-                print('Y not monotonic ascending')
                 for i in range(1, len(gdf)):
                     if gdf.y.iloc[i-1] > gdf.y.iloc[i]:
                         lev = gdf.level.iloc[i]

@@ -70,10 +70,12 @@ def load_dicom_stack(dicom_folder, plane, reverse_sort=False):
     ps = np.asarray([d.PixelSpacing for d in dicoms]).astype("float")[idx]
     shps = np.asarray([d.pixel_array.shape for d in dicoms]).astype("float")[idx]
     all_shps = np.unique(shps, axis=0)
+    #TODO: Adjust centers for these issues
     if len(all_shps) > 1:
         wv = ps*shps
         assert np.all(wv.max(axis=0) - wv.min(axis=0) < ps.min(axis=0))
         image_size = int(shps[0, 0]), int(shps[0, 1])
+        # Adjusting pixel spacing for the reshape
         for i in range(len(ps)):
             ps[i] = ps[0]
         array = np.stack([cv2.resize(d.pixel_array, image_size, interpolation=cv2.INTER_LANCZOS4).astype("float32") for d in dicoms])
