@@ -20,7 +20,14 @@ def create_model(cfg, fold):
         return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
     
     elif cfg.name == 'fusedtdcnnlevel':
-        return tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
+        model = tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, 
+                                          sagittal_t2_model=cfg.sagittal_t2,
+                                          sagittal_t1_model=cfg.sagittal_t1,
+                                          axial_t2_model=cfg.axial_t2,
+                                          fold=fold,
+                                          img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
+        model.freeze_vision()
+        return model
 
     elif cfg.name == 'tdcnnunetpreloadzoom':
         return tdcnn.TDCNNUNetPreloadZoom(in_channels=cfg.channels, out_classes=cfg.unet_classes, patch_size=cfg.patch_size, encoder_name=cfg.encodername, 

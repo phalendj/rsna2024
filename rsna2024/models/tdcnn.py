@@ -129,16 +129,23 @@ class FusedTDCNNLevelModel(nn.Module):
 
         self.classifier = nn.LazyLinear(n_classes)
 
+        self.model_name = model_name
+
     def freeze_vision(self):
+        logger.info('Freeze Vision model')
         self.sagittal_t2.freeze_vision()
         self.sagittal_t1.freeze_vision()
         self.axial_t2.freeze_vision()
         
     def unfreeze_vision(self):
+        logger.info('Unfreeze Vision model')
         self.sagittal_t2.unfreeze_vision()
         self.sagittal_t1.unfreeze_vision()
         self.axial_t2.unfreeze_vision()
-        
+
+    def name(self):
+        return f'fused_td_cnn_level_{self.model_name}'
+
     def forward(self, x1, x2, x3):
         y1 = self.sagittal_t2.level_forward_features(x1)
         y2 = self.sagittal_t1.level_forward_features(x2)

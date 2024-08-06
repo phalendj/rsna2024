@@ -87,7 +87,7 @@ def evaluate(model, cfg):
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
-                    if isinstance(x, tuple):
+                    if isinstance(x, tuple) or isinstance(x, list):
                         x1, x2, x3 = x
                         x1 = x1.to(device)
                         x2 = x2.to(device)
@@ -204,7 +204,7 @@ def train_one_fold(model, cfg, fold: int):
         with tqdm(train_dl, leave=True) as pbar:
             optimizer.zero_grad()
             for idx, (x, t) in enumerate(pbar):  
-                if isinstance(x, tuple):
+                if isinstance(x, tuple) or isinstance(x, list):
                     x1, x2, x3 = x
                     x1 = x1.to(device)
                     x2 = x2.to(device)
@@ -255,7 +255,7 @@ def train_one_fold(model, cfg, fold: int):
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
-                    if isinstance(x, tuple):
+                    if isinstance(x, tuple) or isinstance(x, list):
                         x1, x2, x3 = x
                         x1 = x1.to(device)
                         x2 = x2.to(device)
