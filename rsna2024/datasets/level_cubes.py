@@ -101,12 +101,38 @@ class LevelCubeDataset(Dataset):
                     x0 = np.mean(xr)
                     y0 = np.mean(yr)
                     z0 = np.mean(zr)
-                    x0 = min(W-self.slice_size, max(int(x0), self.slice_size))
-                    y0 = min(H-self.slice_size, max(int(y0), self.slice_size))
+                    x0 = max(int(x0) - self.slice_size, 0)
+                    y0 = max(int(y0) - self.slice_size, 0)
+                    x1 = min(W-self.slice_size, x0 + 2*self.slice_size)
+                    y1 = min(H-self.slice_size, y0 + 2*self.slice_size)
 
                     i0 = max(int(z0 - self.channels/ 2), 0)
                     i1 = min(i0 + self.channels, D)
-                    x[k, ..., :(i1-i0)] = data[x0-self.slice_size:x0+self.slice_size, y0-self.slice_size:y0+self.slice_size, i0:i1]
+                    # Axial images can have smaller pixel sizes, and when doing levels we really want the entire image
+                    if self.series_description == 'Axial T2' and 2*self.slice_size > H or 2*self.slice_size > W:
+                        data2 = data[..., i0:i1].copy()
+                        if H > W:
+                            diff = H-W
+                            if self.mode == 'train':
+                                offset = np.random.randint(diff)
+                            else:
+                                offset = int(diff//2)
+                            data2 = data2[offset:offset+W]
+                            H = W
+                        elif W > H:
+                            diff = W-H
+                            if self.mode == 'train':
+                                offset = np.random.randint(diff)
+                            else:
+                                offset = int(diff//2)
+
+                            data2 = data2[:, offset:offset+H]
+                            W = H
+                        data2 = cv2.resize(data2, (2*self.slice_size, 2*self.slice_size), interpolation=cv2.INTER_LANCZOS4)
+                        x[k, ..., :(i1-i0)] = data2
+                        
+                    else:
+                        x[k, :(x1-x0), :(y1-y0), :(i1-i0)] = data[x0:x1, y0:y1, i0:i1]
                     
             if self.transform is not None:
                 # Need to reshape it around

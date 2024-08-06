@@ -19,5 +19,13 @@ class RSNA24Model(nn.Module):
         return f'vision2d_rsna2024_{self.model_name}'
 
     def forward(self, x):
-        y = self.model(x)
-        return {'labels': y}
+        if len(x.shape) == 4:
+            y = self.model(x)
+            return {'labels': y}
+        else:  # In case of level set data
+            B, L, C, H, W = x.shape
+            x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+            y = self.model(x)
+            y = y.reshape(B, L, -1, 3)  # Now B, Condition, Level, diagnosis
+            y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+            return {'labels': y}

@@ -7,14 +7,13 @@ directories:
 
 
 dataset:
-  name: LevelCubeDataset
+  name: AllLevelCubeDataset
   image_size: [512, 512]
-  series_description: Axial T2
-  # conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
-  conditions: ['Left Subarticular Stenosis', 'Right Subarticular Stenosis']
+  # series_description: Axial T2
+  conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
   # conditions: ['Spinal Canal Stenosis']
-  channels: 3
-  subsize: 256
+  channels: 15
+  subsize: 64
   augmentations:
     prob: 0.75
     normalize: True
@@ -31,10 +30,14 @@ loss:
   # patch_size: 512
   
 model:
-  name: vision2d
-  modelname: densenet201
-  channels: 3
-  nclasses: 6
+  name: fusedtdcnnlevel
+  model_name: densenet121
+  nclasses: 15
+  subsize: 64
+  num_layers: 4
+  sagittal_t2: /home/phalendj/code/rsna2024/outputs/2024-08-06/10-16-27/
+  sagittal_t1: /home/phalendj/code/rsna2024/outputs/2024-08-06/11-35-08/
+  axial_t2: /home/phalendj/code/rsna2024/outputs/2024-08-06/12-43-14/
 
 optimization:
   optimizer: AdamW
