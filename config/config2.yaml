@@ -1,0 +1,54 @@
+seed: 2222
+
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+
+
+dataset:
+  name: LevelCubeDataset
+  image_size: [512, 512]
+  series_description: Sagittal T2/STIR
+  conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
+  # conditions: ['Spinal Canal Stenosis']
+  channels: 15
+  subsize: 64
+  augmentations:
+    prob: 0.75
+    normalize: True
+    hflip: False
+    contrast: True
+    blur: True
+    distort: True
+    rotate: False
+  
+
+loss:
+  name: SevereLoss
+  # name: HeatmapLoss
+  # patch_size: 512
+  
+model:
+  name: tdcnnlevel
+  model_name: densenet121
+  nclasses: 15
+  subsize: 64
+  num_layers: 4
+
+optimization:
+  optimizer: AdamW
+  scheduler: CosineWithWarmup
+  learning_rate: 1.0e-4
+  weight_decay: 1.e-2
+  n_cycles: 0.475
+
+training:
+  use_folds: [0, 1, 2, 3, 4]
+  use_amp: True
+  epochs: 10
+  batch_size: 16
+  grad_acc: 1
+  early_stopping: 3
+  workers: 12
+
