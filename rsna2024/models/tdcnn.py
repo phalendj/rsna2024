@@ -68,13 +68,22 @@ class TDCNNModel(nn.Module):
         return {'labels': self.classifier(y)}
     
 class TDCNNLevelModel(TDCNNModel):
-    def level_forward_features(self, x):
+    def level_forward(self, x):
         B, L, I, H, W = x.shape
-        x = x.flatten(0, 1)
+        x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
         t = super().forward(x)
         y = t['labels']
         # y.shape = B*L, nclasses
-        y = y.reshape(B, L, -1)
+        y = y.reshape(B, L, -1, 3)  # Now B, Condition, Level, diagnosis
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+        return y
+    
+    def level_forward_features(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        y = super().forward_features(x)
+        # y.shape = B*L, feature dim (1024 or something like that)
+        y = y.reshape(B, L, -1)  # Now B, Level, feature dim
         return y
 
     def name(self):
@@ -94,8 +103,7 @@ class TDCNNLevelModel(TDCNNModel):
             parameters.requires_grad = True
 
     def forward(self, x):
-        y = self.level_forward_features(x)
-        y = y.transpose(1,2).flatten(1)
+        y = self.level_forward(x)
         return {'labels': y}
     
 

@@ -198,7 +198,7 @@ def train_one_fold(model, cfg, fold: int):
 
     EPOCHS = cfg.training.epochs
     for epoch in range(1, EPOCHS+1):
-        print(f'start epoch {epoch}')
+        logger.info(f'start epoch {epoch}')
         model.train()
         total_loss = 0
         with tqdm(train_dl, leave=True) as pbar:
@@ -226,7 +226,7 @@ def train_one_fold(model, cfg, fold: int):
                             loss = loss / GRAD_ACC
 
                 if not math.isfinite(loss):
-                    print(f"Loss is {loss}, stopping training")
+                    logger.info(f"Loss is {loss}, stopping training")
                     return
 
                 pbar.set_postfix(
@@ -247,7 +247,7 @@ def train_one_fold(model, cfg, fold: int):
                         scheduler.step()                    
 
         train_loss = total_loss/len(train_dl)
-        print(f'train_loss:{train_loss:.6f}')
+        logger.info(f'train_loss:{train_loss:.6f}')
         train_losses.append(train_loss)
         total_loss = 0
 
@@ -272,17 +272,17 @@ def train_one_fold(model, cfg, fold: int):
                             total_loss += loss.item()   
 
         val_loss = total_loss/len(valid_dl)
-        print(f'val_loss:{val_loss:.6f}')
+        logger.info(f'val_loss:{val_loss:.6f}')
         val_losses.append(val_loss)
         if val_loss < best_loss:
 
             if device!='cuda:0':
                 model.to('cuda:0')                
 
-            print(f'epoch:{epoch}, best weighted_logloss updated from {best_loss:.6f} to {val_loss:.6f}')
+            logger.info(f'epoch:{epoch}, best weighted_logloss updated from {best_loss:.6f} to {val_loss:.6f}')
             best_loss = val_loss
             torch.save(model.state_dict(), fname)
-            print(f'{fname} is saved')
+            logger.info(f'{fname} is saved')
             es_step = 0
 
             if device!='cuda:0':
@@ -291,7 +291,7 @@ def train_one_fold(model, cfg, fold: int):
         else:
             es_step += 1
             if es_step >= cfg.training.early_stopping:
-                print('early stopping')
+                logger.info('early stopping')
                 break  
 
         criterion.on_epoch_end()

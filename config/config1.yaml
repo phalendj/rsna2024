@@ -9,8 +9,9 @@ directories:
 dataset:
   name: LevelCubeDataset
   image_size: [512, 512]
-  series_description: Sagittal T1
+  series_description: Sagittal T2/STIR
   conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
+  # conditions: ['Spinal Canal Stenosis']
   channels: 15
   subsize: 64
   augmentations:
