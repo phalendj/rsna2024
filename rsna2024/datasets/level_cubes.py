@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class LevelCubeDataset(Dataset):
-    def __init__(self, study_ids, channels: int, slice_size: int, series_description, conditions, mode='train', transform=None):
+    def __init__(self, study_ids, channels: int, slice_size: int, series_description, conditions, mode='train', transform=None, load_studies=None):
         self.study_ids = list(study_ids)
         self.slice_size = int(slice_size)
         self.channels = channels
@@ -37,9 +37,15 @@ class LevelCubeDataset(Dataset):
             self.coordinate_df = None
             self.series_description_df = load_test_files(relative_directory=relative_directory)
 
-        logger.info(f'Loading {len(study_ids)} Studies')
-        self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
-        logger.info(f'Done')
+        if load_studies is None:
+            logger.info(f'Loading {len(study_ids)} Studies')
+            self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
+            logger.info(f'Done')
+        else:
+            logger.info(f'Referencing pre-loaded studies')
+            self.studies = load_studies
+            assert len(self.study_ids) == len(self.studies)
+
 
         self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
         self.series_description = series_description
@@ -122,8 +128,8 @@ class LevelCubeDataset(Dataset):
 class AllLevelCubeDataset(Dataset):
     def __init__(self, study_ids, channels: int, slice_size: int, conditions, mode='train', transform=None):
         self.sagittal_t2 = LevelCubeDataset(study_ids=study_ids, channels=channels, slice_size=slice_size, conditions=conditions, mode=mode, transform=transform, series_description='Sagittal T2/STIR')
-        self.sagittal_t1 = LevelCubeDataset(study_ids=study_ids, channels=channels, slice_size=slice_size, conditions=conditions, mode=mode, transform=transform, series_description='Sagittal T1')
-        self.axial_t2 = LevelCubeDataset(study_ids=study_ids, channels=channels, slice_size=slice_size, conditions=conditions, mode=mode, transform=transform, series_description='Axial T2')
+        self.sagittal_t1 = LevelCubeDataset(study_ids=study_ids, channels=channels, slice_size=slice_size, conditions=conditions, mode=mode, transform=transform, series_description='Sagittal T1', load_studies=self.sagittal_t2.studies)
+        self.axial_t2 = LevelCubeDataset(study_ids=study_ids, channels=channels, slice_size=slice_size, conditions=conditions, mode=mode, transform=transform, series_description='Axial T2', load_studies=self.sagittal_t2.studies)
 
     def __getitem__(self, idx):
         x_st2, target = self.sagittal_t2[idx]

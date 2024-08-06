@@ -147,13 +147,15 @@ class FusedTDCNNLevelModel(nn.Module):
         return f'fused_td_cnn_level_{self.model_name}'
 
     def forward(self, x1, x2, x3):
+        B, L, I, H, W = x1.shape
         y1 = self.sagittal_t2.level_forward_features(x1)
         y2 = self.sagittal_t1.level_forward_features(x2)
         y3 = self.axial_t2.level_forward_features(x3)
 
         y = torch.concat([y1, y2, y3], dim=2)
         y = self.classifier(y)
-        y = y.transpose(1,2).flatten(1)
+        y = y.reshape(B, L, -1, 3)  # Now B, Condition, Level, diagnosis
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
         return {'labels': y}
 
 
