@@ -27,7 +27,7 @@ class TDCNNModel(nn.Module):
         X = torch.randn(2, 1, *img_size)
         Y = self.feature_model.forward_features(X)
         d_model = Y.shape[1]
-        print(f'Feature dimension {d_model}')
+        logger.info(f'Feature dimension for tdcnn {d_model}')
         
         self.pool = nn.AdaptiveAvgPool2d(output_size=1)
         layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True)
@@ -61,6 +61,8 @@ class TDCNNModel(nn.Module):
         y = self.encoder(y)  # B, I, 1024
         #TODO: Try different pooling methods: avg, max, catavgmax
         y = F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        # y = F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        # y = torch.concatenate([F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1), F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)], dim=1)
         return y
 
     def forward(self, x):

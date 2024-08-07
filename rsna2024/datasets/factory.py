@@ -46,6 +46,17 @@ def create_dataset(study_ids, mode, cfg):
                                             series_description=cfg.series_description,
                                             mode=mode, 
                                             transform=transform)
+    if cfg.name == 'LevelCubeCropZoomDataset':
+        cfg_aug = cfg.augmentations
+        transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+        return level_cubes.LevelCubeCropZoomDataset(study_ids=study_ids,
+                                            image_size=cfg.image_size,
+                                            channels=cfg.channels,
+                                            slice_size=cfg.subsize,
+                                            conditions=cfg.conditions,
+                                            series_description=cfg.series_description,
+                                            mode=mode, 
+                                            transform=transform)
     
     if cfg.name == 'AllLevelCubeDataset':
         cfg_aug = cfg.augmentations

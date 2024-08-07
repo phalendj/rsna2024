@@ -4,7 +4,7 @@ from . import tdcnn
 
 def create_model(cfg, fold):
     if cfg.name == 'vision2d':
-        return vision2d.RSNA24Model(model_name=cfg.modelname, in_c=cfg.channels, n_classes=cfg.nclasses)
+        return vision2d.RSNA24Model(model_name=cfg.model_name, in_c=cfg.channels, n_classes=cfg.nclasses)
     elif cfg.name == 'unet':
         return unet.UNet(in_channels=cfg.channels, out_classes=cfg.unet_classes, patch_size=cfg.patch_size, encoder_name=cfg.encodername, 
                          classifier_name=cfg.model_name, classifier_classes=cfg.nclasses)

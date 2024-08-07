@@ -8,6 +8,9 @@ from . import vision2d
 
 logger = logging.getLogger(__name__)
 
+# Can also use https://www.kaggle.com/datasets/tabassumnova/lumbar-spine-segmentation to pretrain
+
+
 
 class UNet(nn.Module):
     def __init__(self, in_channels, out_classes, patch_size, encoder_name, classifier_name, classifier_classes):

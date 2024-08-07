@@ -14,6 +14,7 @@ def get_transform(train, cfg):
             use.append(A.OneOf([
                                 A.MotionBlur(blur_limit=5),
                                 A.MedianBlur(blur_limit=5),
+                                # A.GaussianBlur(blur_limit=(1, 5)),
                                 A.GaussianBlur(blur_limit=5),
                                 A.GaussNoise(var_limit=(5.0, 30.0)),
                             ], p=cfg.prob))
@@ -27,8 +28,12 @@ def get_transform(train, cfg):
             use.append(A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=0, p=cfg.prob))
         if cfg.normalize:
             use.append(A.Normalize(mean=0.5, std=0.5))
-
-
+        if cfg.crop.use:
+            use.append(A.RandomResizedCrop(width=cfg.crop.size, height=cfg.crop.size, ratio=(0.99, 1.01), scale=(0.7, 1.0)))
+        if cfg.channel_shuffle:
+            use.append(A.ChannelShuffle(p=0.5))
+        if cfg.sharpen:
+            use.append(A.Sharpen(p=0.5))
         return A.Compose(use)
     else:
         use = []
