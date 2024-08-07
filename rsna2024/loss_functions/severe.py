@@ -46,7 +46,7 @@ class SevereLoss(_Loss):
         """
         B = len(input['labels'])
         y_pred = input['labels'].reshape(B, 25, 3)
-        y_pred.transpose(2, 1)
+        y_pred = y_pred.transpose(2, 1)
         y = target['labels'].to(self.device)
 
         assert y_pred.size(0) == y.size(0)
@@ -82,7 +82,7 @@ class SevereLoss(_Loss):
             # Exact max; this works too
             y_pred_max = y_spinal_prob[:, 2, :].amax(dim=1)
 
-        loss_max = F.binary_cross_entropy(y_pred_max, y_max, reduction='none')
+        loss_max = F.binary_cross_entropy_with_logits(torch.log(y_pred_max), y_max, reduction='none')
         wloss_sums.append((w_max * loss_max).sum())
 
         # See below about these numbers

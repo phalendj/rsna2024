@@ -25,7 +25,8 @@ dataset:
   
 
 loss:
-  name: SevereLoss
+  name: WeightedCrossEntropy
+  # name: SevereLoss
   # name: HeatmapLoss
   # patch_size: 512
   

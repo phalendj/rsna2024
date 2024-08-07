@@ -101,15 +101,15 @@ class LevelCubeDataset(Dataset):
                     x0 = np.mean(xr)
                     y0 = np.mean(yr)
                     z0 = np.mean(zr)
-                    x0 = max(int(x0) - self.slice_size, 0)
-                    y0 = max(int(y0) - self.slice_size, 0)
-                    x1 = min(W-self.slice_size, x0 + 2*self.slice_size)
-                    y1 = min(H-self.slice_size, y0 + 2*self.slice_size)
+                    x0 = min(max(int(x0) - self.slice_size, 0), W - 2*self.slice_size)
+                    y0 = min(max(int(y0) - self.slice_size, 0), H - 2*self.slice_size)
+                    x1 = min(W, x0 + 2*self.slice_size)
+                    y1 = min(H, y0 + 2*self.slice_size)
 
                     i0 = max(int(z0 - self.channels/ 2), 0)
                     i1 = min(i0 + self.channels, D)
                     # Axial images can have smaller pixel sizes, and when doing levels we really want the entire image
-                    if self.series_description == 'Axial T2' and 2*self.slice_size > H or 2*self.slice_size > W:
+                    if self.series_description == 'Axial T2' and (2*self.slice_size > H or 2*self.slice_size > W):
                         data2 = data[..., i0:i1].copy()
                         if H > W:
                             diff = H-W
@@ -136,7 +136,7 @@ class LevelCubeDataset(Dataset):
                     
             if self.transform is not None:
                 # Need to reshape it around
-                x = x.transpose(1, 2, 3, 0).reshape(self.slice_size, self.slice_size, -1)
+                x = x.transpose(1, 2, 3, 0).reshape(2*self.slice_size, 2*self.slice_size, -1)
                 x = self.transform(image=x)['image'].reshape(2*self.slice_size, 2*self.slice_size, self.channels, -1).transpose(3, 0, 1, 2)
         
         x = x.transpose(0, 3, 1, 2)
