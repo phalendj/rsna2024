@@ -101,6 +101,14 @@ class LevelCubeDataset(Dataset):
                     x0 = np.mean(xr)
                     y0 = np.mean(yr)
                     z0 = np.mean(zr)
+
+                    # if self.mode == 'train':
+                    #         gap = int(self.slice_size // 10)
+                    #         x0 += np.random.randint(-gap, gap+1)
+                    #         y0 += np.random.randint(-gap, gap+1)
+                    #         z0 += np.random.randint(-1, 2)
+
+
                     x0 = min(max(int(x0) - self.slice_size, 0), H - 2*self.slice_size)
                     y0 = min(max(int(y0) - self.slice_size, 0), W - 2*self.slice_size)
                     x1 = min(H, x0 + 2*self.slice_size)
@@ -256,6 +264,14 @@ class LevelCubeLeftRightDataset(Dataset):
                         x0 = np.mean(xr)
                         y0 = np.mean(yr)
                         z0 = np.mean(zr)
+
+                        if self.mode == 'train':   # This augmentation on its own is very powerful
+                            gap = int(self.slice_size // 10)
+                            x0 += np.random.randint(-gap, gap+1)
+                            y0 += np.random.randint(-gap, gap+1)
+                            z0 += np.random.randint(-1, 2)
+
+
                         x0 = min(max(int(x0) - self.slice_size, 0), H - 2*self.slice_size)
                         y0 = min(max(int(y0) - self.slice_size, 0), W - 2*self.slice_size)
                         x1 = min(H, x0 + 2*self.slice_size)
@@ -284,10 +300,20 @@ class LevelCubeLeftRightDataset(Dataset):
                                 data2 = data2[:, offset:offset+H]
                                 W = H
                             data2 = cv2.resize(data2, (2*self.slice_size, 2*self.slice_size), interpolation=cv2.INTER_LANCZOS4)
-                            x[k, ..., :(i1-i0)] = data2
+                            if m == 1 and self.series_description == 'Axial T2':
+                                x[k, ..., :(i1-i0)] = np.flip(data2, axis=1)
+                            elif m == 1 and self.series_description == 'Sagittal T1':
+                                x[k, m, :(x1-x0), :(y1-y0), :(i1-i0)] = np.flip(data2, axis=2)
+                            else:
+                                x[k, ..., :(i1-i0)] = data2
                             
                         else:
-                            x[k, m, :(x1-x0), :(y1-y0), :(i1-i0)] = data[x0:x1, y0:y1, i0:i1]
+                            if m == 1 and self.series_description == 'Axial T2':
+                                x[k, m, :(x1-x0), :(y1-y0), :(i1-i0)] = np.flip(data[x0:x1, y0:y1, i0:i1], axis=1)
+                            elif m == 1 and self.series_description == 'Sagittal T1':
+                                x[k, m, :(x1-x0), :(y1-y0), :(i1-i0)] = np.flip(data[x0:x1, y0:y1, i0:i1], axis=2)
+                            else:
+                                x[k, m, :(x1-x0), :(y1-y0), :(i1-i0)] = data[x0:x1, y0:y1, i0:i1]
                     
             if self.transform is not None:
                 # Need to reshape it around
