@@ -18,7 +18,8 @@ def create_model(cfg, fold):
         return tdcnn.TDCNNModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
     elif cfg.name == 'tdcnnlevel':
         return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
-    
+    elif cfg.name == 'tdcnnlevelside':
+        return tdcnn.TDCNNLevelSideModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
     elif cfg.name == 'fusedtdcnnlevel':
         model = tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, 
                                           sagittal_t2_model=cfg.sagittal_t2,

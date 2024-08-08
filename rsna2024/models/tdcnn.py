@@ -109,6 +109,49 @@ class TDCNNLevelModel(TDCNNModel):
         return {'labels': y}
     
 
+class TDCNNLevelSideModel(TDCNNModel):
+    def level_forward(self, x):
+        B, L, S, I, H, W = x.shape
+        assert S == 2
+        x = x.flatten(0, 2)  # Now first index is is B0L0S0, B0L0S1, B0L1S0, ..., B0L4S1, B1L0S0, B1L0S1,B1L1S0, ... , dim = (B*L*S, I, H, W)
+        t = super().forward(x)
+        y = t['labels']
+        # y.shape = B*L*S, nclasses
+        y = y.reshape(B, L, S, -1)  # Now B, Level, Side, diagnosis
+        assert y.shape[-1] == 3
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+        return y
+    
+    def level_forward_features(self, x):
+        B, L, S, I, H, W = x.shape
+        x = x.flatten(0, 2)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        y = super().forward_features(x)
+        # y.shape = B*L, feature dim (1024 or something like that)
+        y = y.reshape(B, L, S, -1)  # Now B, Level, feature dim
+        return y
+
+    def name(self):
+        return f'td_cnn_level_side_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname))
+
+    def freeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+
+    def unfreeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def forward(self, x):
+        y = self.level_forward(x)
+        return {'labels': y}
+
+
+
 class FusedTDCNNLevelModel(nn.Module):
     def __init__(self, model_name: str, 
                  sagittal_t2_model: str,

@@ -17,10 +17,15 @@ dataset:
     prob: 0.75
     normalize: True
     hflip: False
-    contrast: True
-    blur: True
-    distort: True
+    contrast: False
+    blur: False
+    distort: False
     rotate: False
+    channel_shuffle: False
+    crop:
+      use: False
+      size: 64
+    sharpen: False
   
 
 loss:
@@ -40,8 +45,8 @@ model:
   unet_classes: 5
   nclasses: 15
   patch_size: 512
-  subsize: 64
-  preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/15-48-48/
+  # subsize: 64
+  # preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/15-48-48/
 
 optimization:
   optimizer: AdamW
