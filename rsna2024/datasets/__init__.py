@@ -75,6 +75,19 @@ def clean_coordinates(dfc):
             
             
 
+def clean_multiple(df, dfc, dfd, condition, number):
+    tdfc = dfc[dfc.condition.map(lambda s: condition in s)]
+
+    xdfc = tdfc.groupby('series_id').count()['instance_number']
+    series_ids = xdfc[xdfc == number].index
+
+    study_ids = dfd.loc[dfd.series_id.isin(series_ids), 'study_id'].unique()
+    df = df[df.study_id.isin(study_ids)]
+    dfc = dfc[dfc.study_id.isin(study_ids)]
+    dfd = dfd[dfd.study_id.isin(study_ids)]
+    return df, dfc, dfd
+
+
 
 def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Loads and returns tuple of train files (train_stratums, label_coordinates, series_descriptions)"""
@@ -90,7 +103,7 @@ def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFram
     # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/514891
     dfd = dfd[dfd.series_id != 3892989905]
     dfc = dfc[dfc.series_id != 3892989905]
-
+    
     # remove mislabeled instances
     # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/521341#2931853
     bad_series_ids = set()
@@ -106,6 +119,10 @@ def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFram
     # remove coordinates that are way off:
     dfc = clean_coordinates(dfc)
 
+    # Only take data where all of what we need is present in a single series
+    df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Spinal', number=5)
+    df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Foraminal', number=10)
+    df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
     return df, dfc, dfd
 
 

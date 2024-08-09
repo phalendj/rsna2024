@@ -232,7 +232,7 @@ class LevelCubeLeftRightDataset(Dataset):
         else:
             label = np.int64([-100 for col in self.label_columns])
 
-        available = [s[2] for s in study.series if s[1] == self.series_description]
+        available = [s[2] for s in study.series if s[1] == self.series_description and len(s[2].diagnosis_coordinates) == 10]
         if len(available) > 0:
             if self.mode == 'train':
                 series = np.random.choice(available)
