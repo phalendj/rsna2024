@@ -6,6 +6,11 @@ from torch.utils.data import DataLoader
 import datasets.level_cubes as level_cubes
 import datasets.augmentations as aug
 
+
+class CROP:
+    use = False
+    size = 512
+
 class CFG:
     hflip = False
     contrast = True
@@ -14,6 +19,10 @@ class CFG:
     rotate = True
     normalize=True
     prob = 0.75
+    sharpen = False
+    channel_shuffle = False
+    crop = CROP
+
 
 def test_dataset_sagittalt2():
     CH = 7
@@ -30,8 +39,8 @@ def test_dataset_sagittalt2():
                                       mode='train', 
                                       transform=aug.get_transform(cfg=CFG, train=True))
     
-    print(ds.label_columns)
-    print(ds.available_diagnosis)
+    # print(ds.label_columns)
+    # print(ds.available_diagnosis)
     x, t = ds[0]
     assert x.shape == torch.Size([5, CH, 2*SS, 2*SS])
     assert t['labels'].shape == torch.Size([25])
@@ -53,8 +62,6 @@ def test_dataset_sagittalt1():
                                       mode='train', 
                                       transform=aug.get_transform(cfg=CFG, train=True))
     
-    print(ds.label_columns)
-    print(ds.available_diagnosis)
     x, t = ds[1]
     assert x.shape == torch.Size([5, CH, 2*SS, 2*SS])
     assert t['labels'].shape == torch.Size([25])
@@ -76,8 +83,6 @@ def test_dataset_axialt2():
                                       mode='train', 
                                       transform=aug.get_transform(cfg=CFG, train=True))
     
-    print(ds.label_columns)
-    print(ds.available_diagnosis)
     x, t = ds[2]
     assert x.shape == torch.Size([5, CH, 2*SS, 2*SS])
     assert t['labels'].shape == torch.Size([25])

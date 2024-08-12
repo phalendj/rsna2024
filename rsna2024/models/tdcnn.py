@@ -51,14 +51,20 @@ class TDCNNModel(nn.Module):
 
     def name(self):
         return f'td_cnn_{self.model_name}'
-
-    def forward_features(self, x):
+    
+    def forward_encode(self, x):
         B, I, H, W = x.shape
         x = x.unsqueeze(2).flatten(0,1)
         y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
         y = self.pool(y).flatten(1)  # B*I, D
         y = y.reshape(B, I, -1)
         y = self.encoder(y)  # B, I, 1024
+        return y
+
+    def forward_features(self, x):
+        # B, I, H, W = x.shape
+        y = self.forward_encode(x)  # B, I, 1024
+    
         #TODO: Try different pooling methods: avg, max, catavgmax
         y = F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
         # y = F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
@@ -68,7 +74,18 @@ class TDCNNModel(nn.Module):
     def forward(self, x):
         y = self.forward_features(x)
         return {'labels': self.classifier(y)}
+
+
+class TDCNNInstanceModel(TDCNNModel):
+    def name(self):
+        return f'td_cnn_instance_{self.model_name}'
     
+    def forward(self, x):
+        y = self.forward_encode(x)
+        return {'instance_labels': self.classifier(y)}
+
+
+
 class TDCNNLevelModel(TDCNNModel):
     def level_forward(self, x):
         B, L, I, H, W = x.shape

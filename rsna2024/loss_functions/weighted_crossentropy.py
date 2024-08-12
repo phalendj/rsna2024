@@ -21,3 +21,19 @@ class WeightedCrossEntropyLoss(nn.CrossEntropyLoss):
             loss = loss + super().forward(pred, gt) / N_LABELS
 
         return loss
+    
+
+class InstanceCrossEntropyLoss(nn.CrossEntropyLoss):
+    def __init__(self, device: str):
+        super().__init__()
+        self.device = device
+
+    def on_epoch_end(self):
+        pass
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        y = input['instance_labels']
+        t = target['slice_classification'].to(self.device)
+        y = y.flatten(0,1)
+        yt =t.flatten(0,1).long()
+        return super().forward(y, yt)

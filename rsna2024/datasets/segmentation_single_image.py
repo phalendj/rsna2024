@@ -202,6 +202,8 @@ class SegmentationCenterDataset(Dataset):
         else:
             label = np.int64([-100 for col in self.label_columns])
 
+
+        slice_classification = np.zeros(self.channels, dtype=int)
         available = [s[2] for s in study.series if s[1] == self.series_description]
         if len(available) > 0:
             if self.mode == 'train':
@@ -211,8 +213,9 @@ class SegmentationCenterDataset(Dataset):
 
             centers = np.array([list(series.diagnosis_coordinates[k]) if k in series.diagnosis_coordinates else [-1.e4, -1.e4, -1] for k in self.available_diagnosis])
             # slice = int(np.random.choice([c for c in centers[:, 2] if c >=0]))
+            used_slices = torch.as_tensor(centers[:, 2]).long()
             centers = torch.as_tensor(centers[:, :2]).float()
-
+            
             data = series.data
             data = data.transpose(1, 2, 0)
             H, W, D = data.shape
@@ -245,11 +248,13 @@ class SegmentationCenterDataset(Dataset):
             # Select the middle portion number of channels
             if D >= self.channels:
                 i0 = int((D - self.channels) // 2)
+                used_slices -= i0
                 for i in range(self.channels):
                     j = i0 + i
                     x[..., i] = data[..., j]
             else:
                 i0 = int((self.channels - D) // 2)
+                used_slices += i0
                 for i in range(D):
                     j = i0 + i
                     x[..., j] = data[..., i]
@@ -259,6 +264,10 @@ class SegmentationCenterDataset(Dataset):
 
             if self.mode == 'train':
                 x, centers = augment_image_and_centers(image=x, centers=centers, alpha=self.aug_size)
+
+            for i in used_slices:
+                if i < len(slice_classification):
+                    slice_classification[i] = 1
         else:
             centers = torch.as_tensor([[-1.e4, -1.e4] for k in self.available_diagnosis]).float()
 
@@ -267,6 +276,7 @@ class SegmentationCenterDataset(Dataset):
         target = {}
         target['labels'] = torch.tensor(label)
         target['centers'] = centers
+        target['slice_classification'] = torch.as_tensor(slice_classification).long()
         target['study_id'] = torch.tensor([study.study_id])
 
         return torch.tensor(x, dtype=torch.float) / 255.0, target

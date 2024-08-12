@@ -1,5 +1,5 @@
 import torch
-import pytest
+import numpy as np
 
 from torch.utils.data import DataLoader
 
@@ -52,8 +52,11 @@ def test_dataset3():
                                                             )
     
     x, t = ds[0]
+    
     assert x.shape == torch.Size([5, 512, 512])
     assert t['centers'].shape == torch.Size([5, 2])
+    assert t['slice_classification'].shape == torch.Size([5])
+    assert np.all(t['slice_classification'].numpy() == np.array([0,0,1,0,0]))
     assert t['labels'].shape == torch.Size([5])
     assert t['study_id'] == torch.tensor([4003253])
 

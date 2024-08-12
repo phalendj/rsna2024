@@ -16,6 +16,8 @@ def create_model(cfg, fold):
                          classifier_name=cfg.model_name, classifier_classes=cfg.nclasses, subsize=cfg.subsize, load_dir=cfg.preload, fold=fold)
     elif cfg.name == 'tdcnn':
         return tdcnn.TDCNNModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
+    elif cfg.name == 'tdcnninstance':
+        return tdcnn.TDCNNInstanceModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
     elif cfg.name == 'tdcnnlevel':
         return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
     elif cfg.name == 'tdcnnlevelside':
