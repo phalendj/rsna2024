@@ -6,11 +6,11 @@ import torch
 from torch.utils.data import Dataset
 
 try:
-    from utils import relative_directory
+    from utils import relative_directory, CLEAN, DEBUG
     from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
     from datasets.dicom_load import Study
 except ImportError:
-    from ..utils import relative_directory
+    from ..utils import relative_directory, CLEAN, DEBUG
     from ..datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
     from .dicom_load import Study
 
@@ -27,7 +27,7 @@ class SingleSeriesCenterDataset(Dataset):
         self.mode = mode
         self.transform = transform
         if self.mode == 'train' or self.mode == 'valid':
-            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory)
+            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory, clean=CLEAN)
         else:
             self.labels_df = None
             self.coordinate_df = None

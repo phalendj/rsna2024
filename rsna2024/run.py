@@ -4,9 +4,9 @@ import datetime
 from omegaconf import DictConfig
 
 try:
-    from .utils import set_directories, set_random_seed
+    from .utils import set_directories, set_random_seed, set_clean, set_debug
 except ImportError:
-    from utils import set_directories, set_random_seed
+    from utils import set_directories, set_random_seed, set_clean, set_debug
 
 import models
 import training
@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 @hydra.main(version_base=None, config_path="../config", config_name="config1")
 def run(cfg: DictConfig) -> None:
     logging.info(f'Configuration: {cfg}')
+    set_clean(cfg.clean)
+    set_debug(cfg.debug)
     set_random_seed(cfg.seed)
     set_directories(cfg.directories)
     # torch.set_float32_matmul_precision('high')

@@ -15,13 +15,13 @@ from hydra.core.hydra_config import HydraConfig
 
 try:
     from datasets import load_train_files
-    from utils import relative_directory
+    from utils import relative_directory, CLEAN, DEBUG
     from datasets import factory as dsfactory
     import loss_functions as lffactory
     import loss_functions.official as officialloss
 except:
     from ..datasets import load_train_files
-    from ..utils import relative_directory
+    from ..utils import relative_directory, CLEAN, DEBUG
     from ..datasets import factory as dsfactory
     from .. import loss_functions as lffactory
     from ..loss_functions import official as officialloss
@@ -53,7 +53,7 @@ def create_optimizer(cfg, model, nbatches):
 
 
 def evaluate(model, cfg):
-    df, __, __ = load_train_files(relative_directory=relative_directory)
+    df, __, __ = load_train_files(relative_directory=relative_directory, clean=CLEAN)
     # load sample submission file
     device = 'cuda:0'
 
@@ -143,7 +143,7 @@ def evaluate(model, cfg):
 
 
 def train_one_fold(model, cfg, fold: int):
-    df, __, __ = load_train_files(relative_directory=relative_directory)
+    df, __, __ = load_train_files(relative_directory=relative_directory, clean=CLEAN)
 
     val_losses = []
     train_losses = []

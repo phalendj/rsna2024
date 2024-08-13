@@ -1,5 +1,6 @@
 seed: 2222
-
+clean: True
+debug: False
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
@@ -12,7 +13,7 @@ dataset:
   series_description: Sagittal T2/STIR
   conditions: ['Spinal Canal Stenosis']
   # conditions: ['Spinal Canal Stenosis']
-  channels: 15
+  channels: 30
   subsize: 64
   aug_size: 0.1
   augmentations:
@@ -46,7 +47,7 @@ model:
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 1.0e-4
+  learning_rate: 0.3e-4
   weight_decay: 1.e-2
   n_cycles: 0.475
 
@@ -54,7 +55,7 @@ training:
   use_folds: [0, 1, 2, 3, 4]
   use_amp: True
   epochs: 10
-  batch_size: 8
+  batch_size: 4
   grad_acc: 1
   early_stopping: 3
   workers: 12

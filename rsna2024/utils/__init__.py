@@ -6,6 +6,8 @@ import os
 relative_directory = '/data/phalendj/kaggle/rsna2024'
 image_directory = f'{relative_directory}/train_images/'
 
+CLEAN = True
+DEBUG = False
 
 def set_directories(cfg):
     global relative_directory
@@ -23,3 +25,12 @@ def set_random_seed(seed: int = 2222, deterministic: bool = False):
     torch.cuda.manual_seed(seed)  # type: ignore
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.deterministic = deterministic  # type: ignore
+
+
+def set_clean(val):
+    global CLEAN
+    CLEAN = val
+
+def set_debug(val):
+    global DEBUG
+    DEBUG = val

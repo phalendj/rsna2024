@@ -1,5 +1,6 @@
 seed: 2222
-
+clean: True
+debug: False
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024

@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import logging
 
 
@@ -76,6 +77,7 @@ def clean_coordinates(dfc):
             
 
 def clean_multiple(df, dfc, dfd, condition, number):
+    """Removes studies where the study does not have all locations in a single series"""
     tdfc = dfc[dfc.condition.map(lambda s: condition in s)]
 
     xdfc = tdfc.groupby('series_id').count()['instance_number']
@@ -88,8 +90,36 @@ def clean_multiple(df, dfc, dfd, condition, number):
     return df, dfc, dfd
 
 
+def get_pixel_spread(row):
+    cond = ['spinal_canal_stenosis', 'left_neural_foraminal_narrowing', 'right_neural_foraminal_narrowing'] #, 'left_subarticular_stenosis', 'right_subarticular_stenosis']
+    dmax = 0
+    for i in range(len(cond)-2):
+        c1 = cond[i]
+        for j in range(1, len(cond)):
+            c2 = cond[j]
+            d = np.sqrt((row[f'pixel_x_{c1}'] - row[f'pixel_x_{c2}'])**2 + (row[f'pixel_y_{c1}'] - row[f'pixel_y_{c2}'])**2)
+            if np.isnan(d):
+                return np.nan
+            elif d > dmax:
+                dmax = d
+    return dmax
 
-def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+def clean_mismatch_sagittal_vertebrae(relative_directory, df, dfc, dfd, limit):
+    cdfc = pd.read_csv(f'{relative_directory}/train_coordinates_translated.csv')
+    cdfc['spread'] = cdfc.apply(lambda row: get_pixel_spread(row), axis=1)
+    gdf = cdfc[(cdfc.spread < limit) & (cdfc.condition == 'Spinal Canal Stenosis')]
+    x = gdf.groupby('study_id').count()['instance_number']
+    study_ids = x[x==5].index
+    logger.info(f'Cleaning mismatched vertebrae for sagittal, remaining = {len(study_ids)} for limit = {limit}')
+    df = df[df.study_id.isin(study_ids)]
+    dfc = dfc[dfc.study_id.isin(study_ids)]
+    dfd = dfd[dfd.study_id.isin(study_ids)]
+    return df, dfc, dfd
+
+
+
+def load_train_files(relative_directory: str, clean: bool = True) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Loads and returns tuple of train files (train_stratums, label_coordinates, series_descriptions)"""
     df = pd.read_csv(f'{relative_directory}/train_stratums.csv')
 
@@ -99,30 +129,33 @@ def load_train_files(relative_directory: str) -> tuple[pd.DataFrame, pd.DataFram
     dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates.csv')
     dfd = pd.read_csv(f'{relative_directory}/train_series_descriptions.csv')
 
-    # Drop cervical spine image
-    # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/514891
-    dfd = dfd[dfd.series_id != 3892989905]
-    dfc = dfc[dfc.series_id != 3892989905]
-    
-    # remove mislabeled instances
-    # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/521341#2931853
-    bad_series_ids = set()
-    for level in LEVELS:
-        ldfc = dfc[(dfc.condition == 'Left Neural Foraminal Narrowing') & (dfc.level == level)]
-        rdfc = dfc[(dfc.condition == 'Right Neural Foraminal Narrowing') & (dfc.level == level)]
-        tmp = rdfc.merge(ldfc, how='inner', on=['study_id', 'series_id', 'instance_number'])
-        bad_series_ids |= set(tmp.series_id.unique())
+    if clean:
+        # Drop cervical spine image
+        # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/514891
+        dfd = dfd[dfd.series_id != 3892989905]
+        dfc = dfc[dfc.series_id != 3892989905]
+        
+        # remove mislabeled instances
+        # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/521341#2931853
+        bad_series_ids = set()
+        for level in LEVELS:
+            ldfc = dfc[(dfc.condition == 'Left Neural Foraminal Narrowing') & (dfc.level == level)]
+            rdfc = dfc[(dfc.condition == 'Right Neural Foraminal Narrowing') & (dfc.level == level)]
+            tmp = rdfc.merge(ldfc, how='inner', on=['study_id', 'series_id', 'instance_number'])
+            bad_series_ids |= set(tmp.series_id.unique())
 
-    dfd = dfd[~dfd.series_id.isin(bad_series_ids)]
-    dfc = dfc[~dfc.series_id.isin(bad_series_ids)]
+        dfd = dfd[~dfd.series_id.isin(bad_series_ids)]
+        dfc = dfc[~dfc.series_id.isin(bad_series_ids)]
 
-    # remove coordinates that are way off:
-    dfc = clean_coordinates(dfc)
+        # remove coordinates that are way off:
+        dfc = clean_coordinates(dfc)
 
-    # Only take data where all of what we need is present in a single series
-    df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Spinal', number=5)
-    df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Foraminal', number=10)
-    df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
+        # Only take data where all of what we need is present in a single series
+        df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Spinal', number=5)
+        df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Foraminal', number=10)
+        df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
+
+        df, dfc, dfd = clean_mismatch_sagittal_vertebrae(relative_directory=relative_directory, df=df, dfc=dfc, dfd=dfd, limit=30)
     return df, dfc, dfd
 
 
