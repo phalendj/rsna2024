@@ -111,6 +111,10 @@ def clean_mismatch_sagittal_vertebrae(relative_directory, df, dfc, dfd, limit):
     gdf = cdfc[(cdfc.spread < limit) & (cdfc.condition == 'Spinal Canal Stenosis')]
     x = gdf.groupby('study_id').count()['instance_number']
     study_ids = x[x==5].index
+    bad = [178651310, 642715533, 1737682527, 3133422961, 3713534743, 2238966046, 680021009, 2775668188, 1117492266, 2493610993, 2552240617, 
+           3941522676, 425970461, 200354973, 928901340, 2761048584, 3485457199, 233281390, 829439070, 2938320663]
+    bad += [462494704, 1647904243]  # These are very warped
+    study_ids = {i for i in study_ids if i not in bad}
     logger.info(f'Cleaning mismatched vertebrae for sagittal, remaining = {len(study_ids)} for limit = {limit}')
     df = df[df.study_id.isin(study_ids)]
     dfc = dfc[dfc.study_id.isin(study_ids)]

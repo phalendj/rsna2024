@@ -36,6 +36,19 @@ def create_dataset(study_ids, mode, cfg):
                                                                  aug_size=cfg.aug_size,
                                                                  transform=transform,
                                                             )
+    if cfg.name == 'SegmentationPredictedCenterDataset':
+        cfg_aug = cfg.augmentations
+        transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+        return segmentationsingle.SegmentationPredictedCenterDataset(study_ids=study_ids,
+                                                                 image_size=cfg.image_size,
+                                                                 channels=cfg.channels,
+                                                                 conditions=cfg.conditions,
+                                                                 series_description=cfg.series_description,
+                                                                 center_file=cfg.center_file,
+                                                                 mode=mode, 
+                                                                 aug_size=cfg.aug_size,
+                                                                 transform=transform,
+                                                            )
     if cfg.name == 'LevelCubeDataset':
         cfg_aug = cfg.augmentations
         transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
