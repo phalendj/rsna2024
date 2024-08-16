@@ -433,10 +433,14 @@ class OrientedSeries(object):
         if hasattr(self, 'dicom_stacks'):
             return
         
-        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl') and False:
-            with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
-                self.dicom_stacks = pickle.load(f)
-        else:
+        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl'):
+            try:
+                with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
+                    self.dicom_stacks = pickle.load(f)
+            except ModuleNotFoundError:
+                pass
+        
+        if not hasattr(self, 'dicom_stacks'):
             plane = self.get_plane()
             self.dicom_stacks = get_dicom_groupings(self.path_to_dicom, plane=plane, reverse_sort=(plane == 'axial'))
 

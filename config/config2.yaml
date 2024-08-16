@@ -1,6 +1,7 @@
 seed: 2222
 clean: True
 debug: False
+result: evaluate  # evaluate, instance_numbers, sagittalcenters
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
@@ -16,7 +17,7 @@ dataset:
   channels: 15
   subsize: 64
   aug_size: 0.1
-  center_file: /home/phalendj/code/rsna2024/outputs/2024-08-12/12-38-39/center_instance.csv
+  center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/08-54-32/predicted_label_coordinates.csv
   augmentations:
     prob: 0.75
     normalize: True  # Helpful with generalization
@@ -42,7 +43,7 @@ loss:
 model:
   name: unet
   model_name: densenet121
-  encodername: resnet50
+  encodername: resnet34
   channels: 15
   unet_classes: 5
   nclasses: 15

@@ -29,7 +29,12 @@ def run(cfg: DictConfig) -> None:
         training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
     model = models.create_model(cfg=cfg.model, fold=0)
-    training.evaluate(model, cfg=cfg)
+    if cfg.result == 'evaluate':
+        training.evaluate(model, cfg=cfg)
+    elif cfg.result == 'instance_numbers':
+        training.generate_instance_numbers(cfg)
+    elif cfg.result == 'coarse_segment':
+        raise NotImplementedError
 
 
 if __name__ == '__main__':

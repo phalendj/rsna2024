@@ -210,8 +210,8 @@ class SegmentationPredictedCenterDataset(SegmentationCenterDataset):
         super().__init__(study_ids=study_ids, image_size=image_size, channels=channels, series_description=series_description, conditions=conditions, mode=mode, aug_size=aug_size, transform=transform)
         
     def get_instance_number(self, series):
-        i = self.pred_center_df[self.pred_center_df.series_id == series.series_id, 'instance_number'].values
-        median = int(i.median())
+        i = self.pred_center_df.loc[self.pred_center_df.series_id == series.series_id, 'instance_number'].values
+        median = int(np.median(i))
         if median not in i:
             return sorted(i, key=lambda v: abs(v-i))[0]
 

@@ -14,17 +14,21 @@ from transformers import get_cosine_schedule_with_warmup
 from hydra.core.hydra_config import HydraConfig
 
 try:
-    from datasets import load_train_files
-    from utils import relative_directory, CLEAN, DEBUG
+    from datasets import load_train_files, LEVELS
+    from utils import relative_directory
+    import utils as rsnautils
     from datasets import factory as dsfactory
     import loss_functions as lffactory
     import loss_functions.official as officialloss
+    import models
 except:
-    from ..datasets import load_train_files
-    from ..utils import relative_directory, CLEAN, DEBUG
+    from ..datasets import load_train_files, LEVELS
+    from ..utils import relative_directory
+    from .. import utils as rsnautils
     from ..datasets import factory as dsfactory
     from .. import loss_functions as lffactory
     from ..loss_functions import official as officialloss
+    from .. import models
 
 
 logger = logging.getLogger(__name__)
@@ -53,7 +57,7 @@ def create_optimizer(cfg, model, nbatches):
 
 
 def evaluate(model, cfg):
-    df, __, __ = load_train_files(relative_directory=relative_directory, clean=CLEAN)
+    df, __, __ = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
     # load sample submission file
     device = 'cuda:0'
 
@@ -142,8 +146,80 @@ def evaluate(model, cfg):
     logger.info(f'Official CV score: {scr}')
 
 
+def generate_instance_numbers(cfg):
+    logger.info('Generate instance numbers file')
+    model_directory = Path(HydraConfig.get().runtime.output_dir)
+    df, dfc, dfd = load_train_files(relative_directory, clean=False)
+    if cfg.clean:
+        rsnautils.set_clean(False)
+        df_clean, __, __ = load_train_files(relative_directory, clean=True)
+        df_clean_i = df_clean.set_index('study_id')
+    else:
+        df_clean_i = df.set_index('study_id')
+
+    device = 'cuda:0'
+
+    all_models = []
+    for fold in range(5):
+        model = models.create_model(cfg.model, fold=fold)
+        fname = model_directory / (model.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading model from {fname}')
+        model.load_state_dict(torch.load(fname))
+        __ = model.eval()
+        all_models.append(model.to(device))
+
+    results = []
+    autocast = torch.autocast('cuda', enabled=cfg.training.use_amp, dtype=torch.half) # you can use with T4 gpu. or newer
+    w = torch.arange(30)
+    for fold in cfg.training.use_folds:
+        logger.info(f'Fold {fold}')
+        df_valid = df.loc[df.fold == fold]
+        valid_ds = dsfactory.create_dataset(study_ids=df_valid.study_id.unique(), mode='valid', cfg=cfg.dataset)
+        valid_dl = DataLoader(valid_ds,
+                            batch_size=cfg.training.batch_size,
+                            shuffle=False,
+                            pin_memory=True,
+                            drop_last=False,
+                            num_workers=cfg.training.workers)
+        
+        with torch.no_grad():
+            for x, t in tqdm(valid_dl):
+                if isinstance(x, tuple) or isinstance(x, list):
+                    x1, x2, x3 = x
+                    x1 = x1.to(device)
+                    x2 = x2.to(device)
+                    x3 = x3.to(device)
+                    with autocast:
+                        preds = [model(x1, x2, x3) for model in all_models]
+                else:
+                    x = x.to(device)
+                    with autocast:
+                        preds = [model(x) for model in all_models]
+                study_ids = t['study_id'][:, 0].numpy()
+                series_ids = t['series_id'][:, 0].numpy()
+                tmp = []
+                for i, study_id in enumerate(study_ids):
+                    if study_id in df_clean_i.index:
+                        fold = df_clean_i.loc[study_id, 'fold']
+                        pred = preds[fold]
+                        class_pred = pred['instance_labels'].softmax(dim=2)[i, :, 1].cpu()
+                    else:
+                        class_pred = torch.mean(torch.stack([pred['instance_labels'].softmax(dim=2)[i, :, 1].cpu() for pred in preds], dim=0), dim=0)
+                    tmp.append(class_pred)
+
+                class_pred = torch.stack(tmp, dim=0)
+                loc = (class_pred*w).sum(dim=1)/class_pred.sum(dim=1)
+                ind = torch.round(loc.float()).long()
+                instance_numbers = [t['instance_numbers'][i, j].item() for i, j in enumerate(ind)]
+
+                for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
+                    for lev in LEVELS:
+                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
+    pred_center_df = pd.DataFrame(results)
+    pred_center_df.to_csv(model_directory / 'predicted_label_coordinates.csv', index=False)
+    
 def train_one_fold(model, cfg, fold: int):
-    df, __, __ = load_train_files(relative_directory=relative_directory, clean=CLEAN)
+    df, __, __ = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
 
     val_losses = []
     train_losses = []

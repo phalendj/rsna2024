@@ -68,6 +68,29 @@ def test_dataset3():
     assert t['study_id'] == torch.tensor([4003253])
 
 
+def test_dataset4():
+    rsnautils.set_clean(False)
+    ds = segmentationsingle.SegmentationPredictedCenterDataset(study_ids=[4003253,    4646740,    7143189],
+                                                                 image_size=[512, 512],
+                                                                 channels=5,
+                                                                 conditions=['Spinal Canal Stenosis'],
+                                                                 series_description='Sagittal T2/STIR',
+                                                                 generated_coordinate_file='/data/phalendj/kaggle/rsna2024/train_label_coordinates.csv',
+                                                                 mode='train', 
+                                                                 aug_size=0.1,
+                                                                 transform=None
+                                                            )
+    
+    x, t = ds[0]
+    print(t)
+    assert x.shape == torch.Size([5, 512, 512])
+    assert t['centers'].shape == torch.Size([5, 2])
+    assert t['slice_classification'].shape == torch.Size([5])
+    assert np.all(t['slice_classification'].numpy() == np.array([0,0,1,0,0]))
+    assert t['labels'].shape == torch.Size([5])
+    assert t['study_id'] == torch.tensor([4003253])
+
+
 def test_dataloader():
     ds = segmentationsingle.SegmentationCenterDataset(study_ids=[4003253,    4646740,    7143189],
                                                                  image_size=[512, 512],
