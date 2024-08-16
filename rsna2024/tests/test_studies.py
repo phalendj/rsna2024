@@ -91,31 +91,44 @@ def test_oriented_stack2():
         s[:, :, j] += 0.000001*j
     stack.dicom_info['array'] = s
 
-    t, instance_numbers = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=317, y=317, patch_size=20, boundary_instance=None, center=False, center_patch=False)
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=317, y=317, patch_size=20, boundary_instance=None, center=False, center_patch=False)
     assert t[0,0,0] == 4.3003
     assert t[0,-1,-1] == 4.319319
     assert np.all(instance_numbers == np.array([5, 6, 7, 8, 9]))
+    assert patch_offset == (300, 300)
 
-    t, instance_numbers = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=5, y=5, patch_size=20, boundary_instance=None, center=False, center_patch=False)
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=5, y=5, patch_size=20, boundary_instance=None, center=False, center_patch=False)
     assert t[0,0,0] == 4.0
     assert t[0,-1,-1] == 4.019019
+    assert patch_offset == (0, 0)
 
-    t, instance_numbers = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=5, y=5, patch_size=20, boundary_instance=None, center=False, center_patch=True)
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=5, y=5, patch_size=20, boundary_instance=None, center=False, center_patch=True)
     assert t[0,0,0] == 0.0
     assert t[0,5,5] == 4.0
     assert t[0,-1,-1] == 4.014014
+    assert patch_offset == (-5, -5)
 
-    t, instance_numbers = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=315, y=315, patch_size=20, boundary_instance=None, center=False, center_patch=True)
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=315, y=315, patch_size=20, boundary_instance=None, center=False, center_patch=True)
     assert t[0,0,0] == 4.305305
     assert t[0,-6,-6] == 4.319319
     assert t[0,-1,-1] == 0
+    assert patch_offset == (305, 305)
 
-    t, instance_numbers = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=115, y=115, patch_size=20, boundary_instance=None, center=False, center_patch=False)
-
-    assert t[0,0,0] == 4.105105
-    assert np.round(t[0,-1,-1],6) == 4.124124
-
-    t, instance_numbers = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=115, y=115, patch_size=20, boundary_instance=None, center=False, center_patch=True)
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=115, y=115, patch_size=20, boundary_instance=None, center=False, center_patch=False)
 
     assert t[0,0,0] == 4.105105
     assert np.round(t[0,-1,-1],6) == 4.124124
+    assert patch_offset == (105, 105)
+
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=115, y=115, patch_size=20, boundary_instance=None, center=False, center_patch=True)
+
+    assert t[0,0,0] == 4.105105
+    assert np.round(t[0,-1,-1],6) == 4.124124
+    assert patch_offset == (105, 105)
+
+
+    t, instance_numbers, patch_offset = stack.get_thick_patch(instance_number=7, slice_thickness=5, x=115, y=215, patch_size=20, boundary_instance=None, center=False, center_patch=True)
+
+    assert np.round(t[0,0,0],6) == 4.105205
+    assert np.round(t[0,-1,-1],6) == 4.124224
+    assert patch_offset == (105, 205)

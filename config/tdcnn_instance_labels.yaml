@@ -1,0 +1,64 @@
+seed: 2222
+clean: True
+debug: False
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+
+
+dataset:
+  name: SegmentationCenterDataset
+  image_size: [512, 512]
+  series_description: Sagittal T2/STIR
+  conditions: ['Spinal Canal Stenosis']
+  # conditions: ['Spinal Canal Stenosis']
+  channels: 30
+  subsize: 64
+  aug_size: 0.1
+  augmentations:
+    prob: 0.75
+    normalize: True  # Helpful with generalization
+    hflip: False   # Very hurtful usually - cannot segment properly and everything comes in standard locations
+    contrast: True  # Not much change
+    blur: True   # This is a major adjustment that helps with training.
+    distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good 
+    rotate: True  # This is a major adjustment that helps with training.
+    crop:   # 0.9 Does not do much - Maybe crop more? 0.7 hurts
+      use: False
+      size: 512
+    channel_shuffle: False  # Removes all the information for TDCNN
+    sharpen: False
+  
+  
+
+loss:
+  name: InstanceCrossEntropy
+  # name: SevereLoss
+  # name: HeatmapLoss
+  # patch_size: 512
+  
+model:
+  name: tdcnninstance
+  model_name: densenet121
+  nclasses: 2
+  num_layers: 4
+  patch_size: 512
+
+optimization:
+  optimizer: AdamW
+  scheduler: CosineWithWarmup
+  learning_rate: 3.0e-5
+  weight_decay: 1.e-2
+  n_cycles: 0.475
+
+training:
+  use_folds: [0, 1, 2, 3, 4]
+  # use_folds: [2]
+  use_amp: True
+  epochs: 10
+  batch_size: 4
+  grad_acc: 1
+  early_stopping: 3
+  workers: 12
+

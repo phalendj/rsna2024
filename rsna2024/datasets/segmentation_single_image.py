@@ -12,13 +12,15 @@ from torch.utils.data import Dataset
 import torchvision
 
 try:
-    from utils import relative_directory, CLEAN, DEBUG
+    from utils import relative_directory
+    import utils as rsnautils
     from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
-    from datasets.dicom_load import Study
+    import datasets.dicom_load as dcmload
 except ImportError:
-    from ..utils import relative_directory, CLEAN, DEBUG
+    from ..utils import relative_directory
+    from .. import utils as rsnautils
     from ..datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
-    from .dicom_load import Study
+    from . import dicom_load as dcmload
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,8 @@ def augment_image_and_centers(image,centers,alpha):
     angle = random.uniform(-180, 180)*alpha
     #TODO: We can rotate channel by channel to use the better interpolation
     image = rotate_image(image, angle, interpolation=cv2.INTER_LANCZOS4 if D <= 3 else cv2.INTER_LINEAR)
+    if D == 1 and len(image.shape) == 2:
+        image = np.expand_dims(image, 2)
 #   https://discuss.pytorch.org/t/rotation-matrix/128260
     angle = torch.tensor(-angle*math.pi/180)
     s = torch.sin(angle)
@@ -67,102 +71,6 @@ def augment_image_and_centers(image,centers,alpha):
     return image, centers
 
 
-
-class SegmentationSingleImageDataset(Dataset):
-    def __init__(self, study_ids, image_size, series_description, conditions, mode='train', aug_size=0.0):
-        self.study_ids = list(study_ids)
-        self.image_size = int(image_size[0]), int(image_size[1])
-        logger.info(f'Output will have size {self.image_size}')
-        self.mode = mode
-        self.aug_size = aug_size
-        if self.mode == 'train' or self.mode == 'valid':
-            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory, clean=CLEAN)
-        else:
-            self.labels_df = None
-            self.coordinate_df = None
-            self.series_description_df = load_test_files(relative_directory=relative_directory)
-
-        logger.info(f'Loading {len(study_ids)} Studies')
-        self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
-        logger.info(f'Done')
-
-        self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
-        self.series_description = series_description
-
-        if self.mode == 'train' or self.mode == 'valid':
-            series2cond = {'Sagittal T2/STIR': 'spinal',  'Sagittal T1': 'foraminal', 'Axial T2': 'subarticular'}
-            self.available_diagnosis = [c for c in self.label_columns if series2cond[self.series_description] in c]
-            
-
-    @property
-    def labels(self):
-        return self.label_columns
-
-    def __getitem__(self, idx):
-        study = self.studies[idx]
-        if self.mode == 'train' or self.mode == 'valid':
-            label = np.int64([study.labels[col] for col in self.label_columns])
-        else:
-            label = np.int64([-100 for col in self.label_columns])
-
-        available = [s[2] for s in study.series if s[1] == self.series_description]
-        if len(available) > 0:
-            if self.mode == 'train':
-                series = np.random.choice(available)
-            else:
-                series = available[0]
-
-            centers = np.array([list(series.diagnosis_coordinates[k]) if k in series.diagnosis_coordinates else [-1.e4, -1.e4, -1] for k in self.available_diagnosis])
-            slice = int(np.random.choice([c for c in centers[:, 2] if c >=0]))
-            centers = torch.as_tensor(centers[:, :2]).float()
-
-            data = series.data[slice]
-
-            H, W = data.shape
-            if H > W:
-                diff = H-W
-                if self.mode == 'train':
-                    offset = np.random.randint(diff)
-                else:
-                    offset = int(diff//2)
-                data = data[offset:offset+W]
-                centers[:,1] -= offset
-                H = W
-            elif W > H:
-                diff = W-H
-                if self.mode == 'train':
-                    offset = np.random.randint(diff)
-                else:
-                    offset = int(diff//2)
-
-                data = data[:, offset:offset+H]
-                centers[:,0] -= offset
-                W = H
-
-            # logger.info(f'Data Shape : {data.shape}')
-            data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
-
-            centers[:,0] = centers[:,0]*self.image_size[0]/W
-            centers[:,1] = centers[:,1]*self.image_size[1]/H
-
-            if self.mode == 'train':
-                data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
-        else:
-            data = np.zeros(self.image_size, dtype=float)
-            centers = torch.as_tensor([[-1.e4, -1.e4] for k in self.available_diagnosis]).float()
-
-        target = {}
-        target['labels'] = torch.tensor(label)
-        target['centers'] = centers
-        target['study_id'] = torch.tensor([study.study_id])
-
-        return torch.tensor(data, dtype=torch.float).unsqueeze(0) / 255.0, target
-
-    def __len__(self):
-        return len(self.study_ids)
-    
-
-
 class SegmentationCenterDataset(Dataset):
     def __init__(self, study_ids, image_size, channels: int, series_description, conditions, mode='train', aug_size=0.0, transform=None):
         self.study_ids = list(study_ids)
@@ -173,17 +81,18 @@ class SegmentationCenterDataset(Dataset):
         self.aug_size = aug_size
         self.transform = transform
         if self.mode == 'train' or self.mode == 'valid':
-            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory, clean=CLEAN)
+            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
         else:
             self.labels_df = None
             self.coordinate_df = None
             self.series_description_df = load_test_files(relative_directory=relative_directory)
 
         # Check all study ids are in loaded files
+        
         assert len(set(study_ids) & set(self.series_description_df.study_id.unique())) == len(study_ids)
 
         logger.info(f'Loading {len(study_ids)} Studies')
-        self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
+        self.studies = [dcmload.OrientedStudy(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
         logger.info(f'Done')
 
         self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
@@ -193,7 +102,6 @@ class SegmentationCenterDataset(Dataset):
             series2cond = {'Sagittal T2/STIR': 'spinal',  'Sagittal T1': 'foraminal', 'Axial T2': 'subarticular'}
             self.available_diagnosis = [c for c in self.label_columns if series2cond[self.series_description] in c]
             
-
     @property
     def labels(self):
         return self.label_columns
@@ -206,8 +114,7 @@ class SegmentationCenterDataset(Dataset):
 
 
     def __getitem__(self, idx):
-        final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
-        x = np.zeros(final_size, dtype=np.uint8)
+        
         study = self.studies[idx]
 
         full_targets = self.mode == 'train' or self.mode == 'valid'
@@ -217,11 +124,12 @@ class SegmentationCenterDataset(Dataset):
             target['labels'] = torch.tensor(label)
         
         series = study.get_largest_series(self.series_description)
+        target['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
         if series is not None:
             instance_number = self.get_instance_number(series=series)
             stack = series.get_largest_stack()
             data, instance_numbers = stack.get_thick_slice(instance_number=instance_number, slice_thickness=self.channels)
-
+            target['instance_numbers'] = torch.as_tensor(instance_numbers, dtype=torch.long)
             offsets = np.zeros(2)
             scalings = np.ones(2)
 
@@ -247,10 +155,11 @@ class SegmentationCenterDataset(Dataset):
                 offsets[1] = -offset
                 W = H
 
-            # logger.info(f'Data Shape : {data.shape}')
             data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
+            if len(data.shape) == 2:
+                data = np.expand_dims(data, 2)
             scalings[0] = self.image_size[0]/H
-            scalings[0] = self.image_size[1]/W
+            scalings[1] = self.image_size[1]/W
 
             target['offsets'] = torch.tensor(offsets)
             target['scalings'] = torch.tensor(scalings)
@@ -262,17 +171,29 @@ class SegmentationCenterDataset(Dataset):
                 target['slice_classification'] = torch.as_tensor(slice_classification).long()
 
                 tmp = self.coordinate_df.loc[series_mask].set_index('level')
-                centers = np.array([tmp.loc[level, ['x', 'y']].values for level in LEVELS])
+                
+                centers = np.array([tmp.loc[level, ['x', 'y']].values if level in tmp.index else np.array([-1.e4, -1.e4]) for level in LEVELS], dtype=float)
+
                 centers += offsets
                 centers *= scalings
-                target['centers'] = torch.tensor(centers)
+                centers = torch.tensor(centers, dtype=torch.float)
+                target['centers'] = centers
 
             if self.transform is not None:
-                x = self.transform(image=data)['image']
+                data = self.transform(image=data)['image']
 
             if self.mode == 'train':
-                x, centers = augment_image_and_centers(image=x, centers=centers, alpha=self.aug_size)
-                target['centers'] = torch.tensor(centers)
+                data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
+                target['centers'] = centers
+        else:
+            final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
+            data = np.zeros(final_size)
+            if full_targets:
+                target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4
+                target['offsets'] = torch.zeros((2,), dtype=torch.float)
+                target['scalings'] = torch.ones((2,), dtype=torch.float)
+                target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
+                target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
 
         data = data.transpose(2, 0, 1)
 

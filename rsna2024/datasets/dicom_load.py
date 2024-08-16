@@ -21,7 +21,7 @@ import os
 import glob
 import pickle
 from collections import defaultdict
-
+import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import pandas as pd
@@ -336,7 +336,7 @@ class OrientedStack:
 
         return x, np.array(instances, dtype=int)
     
-    def get_thick_patch(self, instance_number: int, slice_thickness: int, x: int, y: int, patch_size: int, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> tuple[np.array, np.array]:
+    def get_thick_patch(self, instance_number: int, slice_thickness: int, x: int, y: int, patch_size: int, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> tuple[np.array, np.array, tuple[int, int]]:
         thick_slice, instance_numbers = self.get_thick_slice(instance_number=instance_number, slice_thickness=slice_thickness, boundary_instance=boundary_instance, center=center)
         _1_, X, Y = thick_slice.shape
         assert patch_size < X
@@ -384,9 +384,10 @@ class OrientedStack:
         
         patch = np.zeros((slice_thickness, patch_size, patch_size), dtype=thick_slice.dtype)
         patch[:, i0:(i0+x1-x0), j0:(j0+y1-y0)] = thick_slice[:, x0:x1, y0:y1]
-        return patch, instance_numbers
+        return patch, instance_numbers, (x0-i0, y0-j0)
             
     def plot_instance(self, instance_number: int, pts: list[tuple[float, float, str]]|None):
+        
         fig, axes = plt.subplots(1,1, figsize=(15, 15))
         ax = axes
         k = self._get_instance_k(instance_number)
@@ -415,6 +416,7 @@ class OrientedSeries(object):
         self.series_id = int(self.series_id)
         
         self.series_description = series_description
+        self.load()
 
     def get_plane(self):
         return self.series_description.split()[0].lower()
@@ -428,18 +430,18 @@ class OrientedSeries(object):
         del self.dicom_stacks
         
     def load(self):
-        if hasattr(self, 'dicom_info'):
+        if hasattr(self, 'dicom_stacks'):
             return
         
-        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl'):
+        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl') and False:
             with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
                 self.dicom_stacks = pickle.load(f)
         else:
             plane = self.get_plane()
             self.dicom_stacks = get_dicom_groupings(self.path_to_dicom, plane=plane, reverse_sort=(plane == 'axial'))
 
-#             with open(self.path_to_dicom + '/saved_oriented.pkl', 'wb') as f:
-#                 pickle.dump(self.dicom_stacks, f)
+            with open(self.path_to_dicom + '/saved_oriented.pkl', 'wb') as f:
+                pickle.dump(self.dicom_stacks, f)
             
     def get_stack(self, instance_number: int) -> np.array:
         for stack in self.dicom_stacks:
@@ -473,6 +475,21 @@ class OrientedSeries(object):
         
         return best_stack, best_distance
 
+    def get_largest_series(self, series_description):
+        """
+        Best used for initial segmentation, will return series with the largest continuous data
+        """
+        largest = None
+        most_slices = 0
+        for series_id, ssd, series in self.series:
+            if series_description == ssd:
+                stack = series.get_largest_stack()
+                if stack.number_of_instances > most_slices:
+                    most_slices = stack.number_of_instances
+                    largest = series
+        return largest
+                    
+
     def get_largest_stack(self):
         """Will find the largest stack"""
         largest = None
@@ -492,10 +509,10 @@ class OrientedStudy(object):
         self.study_id = study_id
         study = series_description_df[series_description_df.study_id == study_id]
         
-        self.series = []
+        self.series_dict = {}
         for row in study.itertuples():
-            s = OrientedSeries(get_series_directory(row.study_id, row.series_id), series_description_df=row.series_description)
-            self.series.append((row.series_id, row.series_description, s))
+            s = OrientedSeries(get_series_directory(row.study_id, row.series_id), series_description=row.series_description)
+            self.series_dict[row.series_id] = s
         
         if labels_df is not None:
             self.labels = labels_df[labels_df.study_id == self.study_id].iloc[0].to_dict()
@@ -505,11 +522,12 @@ class OrientedStudy(object):
                     
         self.set_coordinate_df(coordinate_df)
 
-
     def set_coordinate_df(self, coordinate_df):
         if coordinate_df is not None:
             self.coordinate_df = coordinate_df[coordinate_df.study_id == self.study_id]
 
+    def get_series(self, series_id):
+        return self.series_dict[series_id]
 
     def get_largest_series(self, series_description):
         """
@@ -517,8 +535,8 @@ class OrientedStudy(object):
         """
         largest = None
         most_slices = 0
-        for series_id, ssd, series in self.series:
-            if series_description == ssd:
+        for series in self.series_dict.values():
+            if series_description == series.series_description:
                 stack = series.get_largest_stack()
                 if stack.number_of_instances > most_slices:
                     most_slices = stack.number_of_instances

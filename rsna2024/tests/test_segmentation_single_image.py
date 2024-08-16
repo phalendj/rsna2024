@@ -5,14 +5,19 @@ from torch.utils.data import DataLoader
 
 import datasets.segmentation_single_image as segmentationsingle
 import datasets.augmentations as aug
+import utils as rsnautils
+
 
 def test_dataset():
-    ds = segmentationsingle.SegmentationSingleImageDataset(study_ids=[4003253,    4646740,    7143189],
+    rsnautils.set_clean(False)
+    ds = segmentationsingle.SegmentationCenterDataset(study_ids=[4003253,    4646740,    7143189],
                                                                  image_size=[512, 512],
+                                                                 channels=1,
                                                                  conditions=['Spinal Canal Stenosis'],
                                                                  series_description='Sagittal T2/STIR',
                                                                  mode='train', 
-                                                                 aug_size=0.1
+                                                                 aug_size=0.1,
+                                                                 transform=None
                                                             )
     
     x, t = ds[0]
@@ -23,6 +28,7 @@ def test_dataset():
 
 
 def test_dataset2():
+    rsnautils.set_clean(False)
     ds = segmentationsingle.SegmentationCenterDataset(study_ids=[4003253,    4646740,    7143189],
                                                                  image_size=[512, 512],
                                                                  channels=3,
@@ -41,6 +47,7 @@ def test_dataset2():
 
 
 def test_dataset3():
+    rsnautils.set_clean(False)
     ds = segmentationsingle.SegmentationCenterDataset(study_ids=[4003253,    4646740,    7143189],
                                                                  image_size=[512, 512],
                                                                  channels=5,
@@ -62,12 +69,14 @@ def test_dataset3():
 
 
 def test_dataloader():
-    ds = segmentationsingle.SegmentationSingleImageDataset(study_ids=[4003253,    4646740,    7143189],
+    ds = segmentationsingle.SegmentationCenterDataset(study_ids=[4003253,    4646740,    7143189],
                                                                  image_size=[512, 512],
+                                                                 channels=1,
                                                                  conditions=['Spinal Canal Stenosis'],
                                                                  series_description='Sagittal T2/STIR',
                                                                  mode='train', 
-                                                                 aug_size=0.1
+                                                                 aug_size=0.1,
+                                                                 transform=None
                                                             )
     
     dl = DataLoader(ds, batch_size=3, shuffle=False, pin_memory=True, drop_last=True, num_workers=1)

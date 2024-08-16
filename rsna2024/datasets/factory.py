@@ -1,27 +1,19 @@
-from . import single_description as single_description
 from . import segmentation_single_image as segmentationsingle
 from . import augmentations as aug
 from . import level_cubes as level_cubes
 
 def create_dataset(study_ids, mode, cfg):
-    if cfg.name == 'SingleSeriesCenterDataset':
+    if cfg.name == 'SegmentationSingleImageDataset':
         cfg_aug = cfg.augmentations
         transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
-        return single_description.SingleSeriesCenterDataset(study_ids=study_ids,
-                                                            image_size=cfg.image_size,
-                                                            channels=cfg.channels,
-                                                            conditions=cfg.conditions,
-                                                            series_description=cfg.series_description,
-                                                            mode=mode, 
-                                                            transform=transform
-                                                            )
-    if cfg.name == 'SegmentationSingleImageDataset':
-        return segmentationsingle.SegmentationSingleImageDataset(study_ids=study_ids,
+        return segmentationsingle.SegmentationCenterDataset(study_ids=study_ids,
                                                                  image_size=cfg.image_size,
                                                                  conditions=cfg.conditions,
+                                                                 channels=1,
                                                                  series_description=cfg.series_description,
                                                                  mode=mode, 
-                                                                 aug_size=cfg.aug_size
+                                                                 aug_size=cfg.aug_size,
+                                                                 transform=transform
                                                             )
     
     if cfg.name == 'SegmentationCenterDataset':
@@ -44,7 +36,7 @@ def create_dataset(study_ids, mode, cfg):
                                                                  channels=cfg.channels,
                                                                  conditions=cfg.conditions,
                                                                  series_description=cfg.series_description,
-                                                                 center_file=cfg.center_file,
+                                                                 generated_coordinate_file=cfg.center_file,
                                                                  mode=mode, 
                                                                  aug_size=cfg.aug_size,
                                                                  transform=transform,
@@ -52,44 +44,52 @@ def create_dataset(study_ids, mode, cfg):
     if cfg.name == 'LevelCubeDataset':
         cfg_aug = cfg.augmentations
         transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+        assert len(cfg.conditions) == 1, 'Only one condition for level cubes'
         return level_cubes.LevelCubeDataset(study_ids=study_ids,
                                             channels=cfg.channels,
-                                            slice_size=cfg.subsize,
-                                            conditions=cfg.conditions,
+                                            patch_size=cfg.subsize,
+                                            condition=cfg.conditions[0],
+                                            generated_coordinate_file=cfg.center_file,
                                             series_description=cfg.series_description,
                                             mode=mode, 
                                             transform=transform)
     if cfg.name == 'LevelCubeLeftRightDataset':
         cfg_aug = cfg.augmentations
         transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+        assert len(cfg.conditions) == 2
+        assert ' '.join(cfg.conditions[0].split()[1:]) == ' '.join(cfg.conditions[1].split()[1:]), "Must be same type of condition"
+        assert cfg.conditions[0].split()[0] == 'Left', "Left condition must be first"
+        assert cfg.conditions[1].split()[0] == 'Right', "Right condition must be last"
         return level_cubes.LevelCubeLeftRightDataset(study_ids=study_ids,
-                                            channels=cfg.channels,
-                                            slice_size=cfg.subsize,
-                                            conditions=cfg.conditions,
-                                            series_description=cfg.series_description,
-                                            mode=mode, 
-                                            transform=transform)
-    if cfg.name == 'LevelCubeCropZoomDataset':
-        cfg_aug = cfg.augmentations
-        transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
-        return level_cubes.LevelCubeCropZoomDataset(study_ids=study_ids,
-                                            image_size=cfg.image_size,
-                                            channels=cfg.channels,
-                                            slice_size=cfg.subsize,
-                                            conditions=cfg.conditions,
-                                            series_description=cfg.series_description,
-                                            mode=mode, 
-                                            transform=transform)
+                                                    channels=cfg.channels,
+                                                    patch_size=cfg.subsize,
+                                                    left_condition=cfg.conditions[0],
+                                                    right_condition=cfg.conditions[1],
+                                                    generated_coordinate_file=cfg.center_file,
+                                                    series_description=cfg.series_description,
+                                                    mode=mode, 
+                                                    transform=transform)
+    # if cfg.name == 'LevelCubeCropZoomDataset':
+    #     cfg_aug = cfg.augmentations
+    #     transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+    #     return level_cubes.LevelCubeCropZoomDataset(study_ids=study_ids,
+    #                                         image_size=cfg.image_size,
+    #                                         channels=cfg.channels,
+    #                                         slice_size=cfg.subsize,
+    #                                         conditions=cfg.conditions,
+    #                                         series_description=cfg.series_description,
+    #                                         mode=mode, 
+    #                                         transform=transform)
     
-    if cfg.name == 'AllLevelCubeDataset':
-        cfg_aug = cfg.augmentations
-        transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
-        return level_cubes.AllLevelCubeDataset(study_ids=study_ids,
-                                               channels=cfg.channels,
-                                               slice_size=cfg.subsize,
-                                               conditions=cfg.conditions,
-                                               mode=mode, 
-                                               transform=transform)
+    # if cfg.name == 'AllLevelCubeDataset':
+    #     cfg_aug = cfg.augmentations
+    #     transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+    #     return level_cubes.AllLevelCubeDataset(study_ids=study_ids,
+    #                                            channels=cfg.channels,
+    #                                            slice_size=cfg.subsize,
+    #                                            conditions=cfg.conditions,
+    #                                            mode=mode, 
+    #                                            transform=transform)
 
     else:
         raise NotImplementedError
