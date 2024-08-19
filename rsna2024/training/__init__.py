@@ -57,6 +57,7 @@ def create_optimizer(cfg, model, nbatches):
 
 
 def evaluate(model, cfg):
+    rsnautils.CLEAN = False
     df, __, __ = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
     # load sample submission file
     device = 'cuda:0'

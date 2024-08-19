@@ -171,9 +171,9 @@ class TDCNNLevelSideModel(TDCNNModel):
 
 class FusedTDCNNLevelModel(nn.Module):
     def __init__(self, model_name: str, 
-                 sagittal_t2_model: str,
-                 sagittal_t1_model: str,
-                 axial_t2_model: str,
+                 sagittal_t2_model: str|None,
+                 sagittal_t1_model: str|None,
+                 axial_t2_model: str|None,
                  fold: int,
                  img_size: tuple[int, int], 
                  in_c: int = 1, 
@@ -185,9 +185,12 @@ class FusedTDCNNLevelModel(nn.Module):
         self.sagittal_t1 = TDCNNLevelModel(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers)
         self.axial_t2 = TDCNNLevelModel(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers)
 
-        self.sagittal_t2.load(sagittal_t2_model, fold)
-        self.sagittal_t1.load(sagittal_t1_model, fold)
-        self.axial_t2.load(axial_t2_model, fold)
+        if sagittal_t2_model is not None:
+            self.sagittal_t2.load(sagittal_t2_model, fold)
+        if sagittal_t1_model is not None:
+            self.sagittal_t1.load(sagittal_t1_model, fold)
+        if axial_t2_model is not None:
+            self.axial_t2.load(axial_t2_model, fold)
 
         self.classifier = nn.LazyLinear(n_classes)
 

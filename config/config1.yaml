@@ -1,6 +1,7 @@
 seed: 2222
 clean: True
 debug: False
+result: evaluate  # evaluate, instance_numbers, sagittalcenters
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
@@ -8,17 +9,21 @@ directories:
 
 
 dataset:
-  name: LevelCubeLeftRightDataset
+  name: AllLevelCubeLeftRightDataset
   image_size: [512, 512]
-  series_description: Axial T2
-  # series_description: Sagittal T1
-  # conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
-  conditions: ['Left Subarticular Stenosis', 'Right Subarticular Stenosis']
-  # conditions: ['Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing']
-  # conditions: ['Right Neural Foraminal Narrowing', 'Left Neural Foraminal Narrowing']
-  # conditions: ['Spinal Canal Stenosis']
-  channels: 5
-  subsize: 36
+  # series_description: Axial T2
+  # conditions: ['Left Subarticular Stenosis', Right Subarticular Stenosis]
+  series_description: Sagittal T1
+  conditions: ['Left Neural Foraminal Narrowing', Right Neural Foraminal Narrowing]
+  sagittal_t2_channels: 5
+  sagittal_t2_subsize: 64
+  sagittal_t1_channels: 5
+  sagittal_t1_subsize: 64
+  axial_t2_channels: 5
+  axial_t2_subsize: 64
+  aug_size: 0.1
+  # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
+  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75
     normalize: True  # Helpful with generalization
@@ -33,18 +38,21 @@ dataset:
     channel_shuffle: False  # Removes all the information for TDCNN
     sharpen: False
   
+  
 
 loss:
   name: WeightedCrossEntropy
+  # name: InstanceCrossEntropy
+  # name: SevereLoss
   # name: HeatmapLoss
   # patch_size: 512
   
 model:
   name: tdcnnlevelside
   model_name: densenet121
-  # channels: 3
-  num_layers: 4
   nclasses: 3
+  subsize: 64
+  num_layers: 4
 
 optimization:
   optimizer: AdamW
@@ -55,10 +63,11 @@ optimization:
 
 training:
   use_folds: [0, 1, 2, 3, 4]
+  # use_folds: [2]
   use_amp: True
   epochs: 15
-  batch_size: 8
+  batch_size: 16
   grad_acc: 1
-  early_stopping: 10
+  early_stopping: 3
   workers: 12
 

@@ -91,6 +91,35 @@ def test_dataset_axialt2():
     assert t['slice_classification'].sum().item() == 5
 
 
+def test_all_dataset_axialt2():
+    rsnautils.set_clean(False)
+    CH1 = 7
+    SS1 = 64
+    CH2 = 5
+    SS2 = 48
+    CH3 = 3
+    SS3 = 72
+    ds = level_cubes.AllLevelCubeDataset(study_ids=[4003253,    4646740,    7143189],
+                                      sagittal_t2_channels=CH1,
+                                      sagittal_t1_channels=CH2,
+                                      axial_t2_channels=CH3,
+                                      sagittal_t2_patch_size=SS1,
+                                      sagittal_t1_patch_size=SS2,
+                                      axial_t2_patch_size=SS3,
+                                      condition='Left Subarticular Stenosis',
+                                      series_description='Axial T2',
+                                      generated_coordinate_file='/data/phalendj/kaggle/rsna2024/train_label_coordinates.csv',
+                                      mode='train', 
+                                      transform=aug.get_transform(cfg=CFG, train=True))
+    
+    x1, x2, x3, t = ds[2]
+    assert x1.shape == torch.Size([5, CH1, SS1, SS1])
+    assert x2.shape == torch.Size([5, CH2, SS2, SS2])
+    assert x3.shape == torch.Size([5, CH3, SS3, SS3])
+    assert t['labels'].shape == torch.Size([5])
+    assert t['study_id'] == torch.tensor([7143189])
+    
+
 # def test_dataset_all():
 #     CH = 7
 #     SS = 64

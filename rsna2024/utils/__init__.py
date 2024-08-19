@@ -34,3 +34,14 @@ def set_clean(val):
 def set_debug(val):
     global DEBUG
     DEBUG = val
+
+
+def in_notebook() -> bool:
+    """Used for switching display modes based on if in notebook or not"""
+    try:
+        from IPython import get_ipython
+        if 'IPKernelApp' not in get_ipython().config:  # pragma: no cover
+            return False
+    except (ImportError, AttributeError):
+        return False
+    return True

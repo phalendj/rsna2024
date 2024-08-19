@@ -18,6 +18,7 @@ We can also use the world coordinates, matched with some segmentation informatio
 
 
 import os
+import math
 import glob
 import pickle
 from collections import defaultdict
@@ -29,10 +30,10 @@ import pandas as pd
 import pydicom
 
 try:
-    from utils import image_directory
+    from utils import image_directory, in_notebook
     from datasets import create_column
 except ImportError:
-    from ..utils import image_directory
+    from ..utils import image_directory, in_notebook
     from ..datasets import create_column
 
 
@@ -200,6 +201,15 @@ def load_dicom_stack_2(dicoms, plane: str, reverse_sort=False) -> dict:
     # if reverse_sort=False, then increasing array index will be from RIGHT->LEFT and CAUDAL->CRANIAL
     # thus we do reverse_sort=True for axial so increasing array index is craniocaudal
     idx = np.argsort(-positions if reverse_sort else positions)
+    tmp = [idx[0]]
+    for i, v in enumerate(idx):
+        if i == 0:
+            continue
+        if not math.isclose(positions[v], positions[tmp[-1]]):
+            tmp.append(v)
+
+    idx = np.array(tmp).astype('int')
+            
     ipp = np.asarray([d.ImagePositionPatient for d in dicoms]).astype("float")[idx]
     iop = np.asarray([d.ImageOrientationPatient for d in dicoms]).astype("float")[idx].reshape((len(idx), 2, 3))
     instance_index = np.asarray([int(d.InstanceNumber) for d in dicoms]).astype(int)[idx]
@@ -433,19 +443,23 @@ class OrientedSeries(object):
         if hasattr(self, 'dicom_stacks'):
             return
         
+        save = True
         if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl'):
             try:
                 with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
                     self.dicom_stacks = pickle.load(f)
             except ModuleNotFoundError:
+                save = not in_notebook()
                 pass
         
         if not hasattr(self, 'dicom_stacks'):
             plane = self.get_plane()
             self.dicom_stacks = get_dicom_groupings(self.path_to_dicom, plane=plane, reverse_sort=(plane == 'axial'))
 
-            with open(self.path_to_dicom + '/saved_oriented.pkl', 'wb') as f:
-                pickle.dump(self.dicom_stacks, f)
+            if save:
+                with open(self.path_to_dicom + '/saved_oriented.pkl', 'wb') as f:
+                    pickle.dump(self.dicom_stacks, f)
+
             
     def get_stack(self, instance_number: int) -> np.array:
         for stack in self.dicom_stacks:
@@ -465,17 +479,18 @@ class OrientedSeries(object):
     def get_thick_patch(self, instance_number, slice_thickness, x, y, patch_size, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> np.array:
         return self.get_stack(instance_number).get_thick_patch(instance_number=instance_number, slice_thickness=slice_thickness, x=x, y=y, patch_size=patch_size, boundary_instance=boundary_instance, center=center, center_patch=center_patch)
     
-    def find_closest_stack(self, world_x: float, world_y: float, world_z: float, required_in) -> tuple[OrientedStack|None, float]:
+    def find_closest_stack(self, world_x: float, world_y: float, world_z: float, required_in: bool) -> tuple[OrientedStack|None, float]:
         """
         Given world coordinates, will find the instance number that has the coordinates closest to the center of the image.  Also will return the distance in case we are comparing different series
         """
         best_distance = 1.e10
         best_stack = None
         for stack in self.dicom_stacks:
-            if not required_in or stack.in_space(world_x, world_y, world_z):
+            if not required_in or stack.contains_world_point(world_x, world_y, world_z):
                 d = stack.distance_to_center(world_x, world_y, world_z)
                 if d < best_distance:
                     best_stack = stack
+                    best_distance = d
         
         return best_stack, best_distance
 
@@ -530,6 +545,20 @@ class OrientedStudy(object):
         if coordinate_df is not None:
             self.coordinate_df = coordinate_df[coordinate_df.study_id == self.study_id]
 
+    def find_closest_stack_and_series(self, series_description: str, world_x: float, world_y: float, world_z: float, required_in: bool) -> tuple[OrientedStack, OrientedSeries, float]:
+        best = 1.e10
+        best_stack = None
+        best_series = None
+        for series_id, series in self.series_dict.items():
+            if series.series_description == series_description:
+                stack, dist = series.find_closest_stack(world_x=world_x, world_y=world_y, world_z=world_z, required_in=required_in)
+                if dist < best:
+                    best = dist
+                    best_stack = stack
+                    best_series = series
+        return best_stack, best_series, best
+
+
     def get_series(self, series_id):
         return self.series_dict[series_id]
 
@@ -548,5 +577,5 @@ class OrientedStudy(object):
         return largest
                     
     def __repr__(self):
-        return f'OrientedStudy(study_id={self.study_id}, n_series={len(self.series)})'
+        return f'OrientedStudy(study_id={self.study_id}, n_series={len(self.series_dict)})'
         
