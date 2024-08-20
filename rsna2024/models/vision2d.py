@@ -1,13 +1,14 @@
 import timm
 import torch.nn as nn
+import utils as rsnautils
 
 
 class RSNA24Model(nn.Module):
-    def __init__(self, model_name, in_c=30, n_classes=75, pretrained=True, features_only=False):
+    def __init__(self, model_name, in_c=30, n_classes=75, features_only=False):
         super().__init__()
         self.model = timm.create_model(
                                     model_name,
-                                    pretrained=pretrained, 
+                                    pretrained=rsnautils.PRELOAD, 
                                     features_only=features_only,
                                     in_chans=in_c,
                                     num_classes=n_classes,

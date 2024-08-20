@@ -1,7 +1,10 @@
 seed: 2222
 clean: False
 debug: False
+train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
+load_directory: #/home/phalendj/code/rsna2024/outputs/2024-08-20/09-45-43  # For reloads
+mode: valid
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
@@ -10,15 +13,26 @@ directories:
 
 dataset:
   name: LevelCubeLeftRightDataset
+  # name: LevelCubeDataset
   image_size: [512, 512]
+  # series_description: Sagittal T2/STIR
+  # conditions: [Spinal Canal Stenosis]
   series_description: Axial T2
   conditions: ['Left Subarticular Stenosis', Right Subarticular Stenosis]
   # series_description: Sagittal T1
   # conditions: ['Left Neural Foraminal Narrowing', Right Neural Foraminal Narrowing]
-  channels: 5
+  channels: 7
   subsize: 64
+
+  # sagittal_t2_channels: 11
+  # sagittal_t2_subsize: 64
+  # sagittal_t1_channels: 11
+  # sagittal_t1_subsize: 64
+  # axial_t2_channels: 5
+  # axial_t2_subsize: 64
   aug_size: 0.1
   # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
+  # center_file: /data/phalendj/kaggle/rsna2024/train_labels_sagittal_t1.csv
   center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75

@@ -5,6 +5,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import utils as rsnautils
 
 
 from . import unet
@@ -14,11 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class TDCNNModel(nn.Module):
-    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4, pretrained: bool = True):
+    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4):
         super().__init__()
         self.feature_model = timm.create_model(
                                     model_name,
-                                    pretrained=pretrained, 
+                                    pretrained=rsnautils.PRELOAD, 
                                     features_only=False,
                                     in_chans=in_c,
                                     num_classes=n_classes,

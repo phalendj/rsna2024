@@ -15,13 +15,13 @@ def create_model(cfg, fold):
         return unet.UNetPreloadZoom(in_channels=cfg.channels, out_classes=cfg.unet_classes, patch_size=cfg.patch_size, encoder_name=cfg.encodername, 
                          classifier_name=cfg.model_name, classifier_classes=cfg.nclasses, subsize=cfg.subsize, load_dir=cfg.preload, fold=fold)
     elif cfg.name == 'tdcnn':
-        return tdcnn.TDCNNModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
+        return tdcnn.TDCNNModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
     elif cfg.name == 'tdcnninstance':
-        return tdcnn.TDCNNInstanceModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
+        return tdcnn.TDCNNInstanceModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
     elif cfg.name == 'tdcnnlevel':
-        return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
+        return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
     elif cfg.name == 'tdcnnlevelside':
-        return tdcnn.TDCNNLevelSideModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, pretrained=True)
+        return tdcnn.TDCNNLevelSideModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
     elif cfg.name == 'fusedtdcnnlevel':
         model = tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, 
                                           sagittal_t2_model=cfg.sagittal_t2,

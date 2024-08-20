@@ -85,6 +85,7 @@ class SegmentationCenterDataset(Dataset):
         else:
             self.labels_df = None
             self.coordinate_df = None
+            logger.info(f'In Test Mode for {study_ids}')
             self.series_description_df = load_test_files(relative_directory=relative_directory)
 
         # Check all study ids are in loaded files

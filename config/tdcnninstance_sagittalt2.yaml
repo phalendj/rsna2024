@@ -1,6 +1,10 @@
 seed: 2222
 clean: True
 debug: False
+train: False
+result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
+load_directory: /home/phalendj/code/rsna2024/outputs/2024-08-20/11-23-25/ #/home/phalendj/code/rsna2024/outputs/2024-08-20/09-45-43  # For reloads
+mode: 'valid'
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
@@ -54,7 +58,7 @@ optimization:
 training:
   use_folds: [0, 1, 2, 3, 4]
   use_amp: True
-  epochs: 10
+  epochs: 1
   batch_size: 4
   grad_acc: 1
   early_stopping: 3

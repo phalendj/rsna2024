@@ -30,18 +30,18 @@ import pandas as pd
 import pydicom
 
 try:
-    from utils import image_directory, in_notebook
+    import utils as rsnautils
     from datasets import create_column
 except ImportError:
-    from ..utils import image_directory, in_notebook
+    from .. import utils as rsnautils
     from ..datasets import create_column
 
 
 def get_study_directory(study_id):
-    return f'{image_directory}/{study_id}/'
+    return f'{rsnautils.image_directory}/{study_id}/'
 
 def get_series_directory(study_id, series_id):
-    return f'{image_directory}/{study_id}/{series_id}/'
+    return f'{rsnautils.image_directory}/{study_id}/{series_id}/'
 
 
 def convert_to_8bit(x):
@@ -449,14 +449,14 @@ class OrientedSeries(object):
                 with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
                     self.dicom_stacks = pickle.load(f)
             except ModuleNotFoundError:
-                save = not in_notebook()
+                save = not rsnautils.in_notebook()
                 pass
         
         if not hasattr(self, 'dicom_stacks'):
             plane = self.get_plane()
             self.dicom_stacks = get_dicom_groupings(self.path_to_dicom, plane=plane, reverse_sort=(plane == 'axial'))
 
-            if save:
+            if save and rsnautils.PRELOAD:
                 with open(self.path_to_dicom + '/saved_oriented.pkl', 'wb') as f:
                     pickle.dump(self.dicom_stacks, f)
 

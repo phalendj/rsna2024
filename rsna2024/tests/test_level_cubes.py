@@ -112,7 +112,7 @@ def test_all_dataset_axialt2():
                                       mode='train', 
                                       transform=aug.get_transform(cfg=CFG, train=True))
     
-    x1, x2, x3, t = ds[2]
+    (x1, x2, x3), t = ds[2]
     assert x1.shape == torch.Size([5, CH1, SS1, SS1])
     assert x2.shape == torch.Size([5, CH2, SS2, SS2])
     assert x3.shape == torch.Size([5, CH3, SS3, SS3])

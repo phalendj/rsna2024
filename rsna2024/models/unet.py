@@ -5,6 +5,7 @@ import torch.nn as nn
 import segmentation_models_pytorch as smp
 import numpy as np
 from . import vision2d
+import utils as rsnautils
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ class UNet(nn.Module):
         self.UNet = smp.Unet(
             encoder_name=encoder_name,
             classes=out_classes,
-            in_channels=in_channels
+            in_channels=in_channels,
+            encoder_weights='imagenet' if rsnautils.PRELOAD else None
         )
         self.encoder_name = encoder_name
         self.out_classes = out_classes
@@ -53,7 +55,8 @@ class UNetPreload(nn.Module):
         self.UNet = smp.Unet(
             encoder_name=encoder_name,
             classes=out_classes,
-            in_channels=in_channels
+            in_channels=in_channels,
+            encoder_weights='imagenet' if rsnautils.PRELOAD else None
         )
         self.encoder_name = encoder_name
         self.out_classes = out_classes

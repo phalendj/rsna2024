@@ -88,12 +88,18 @@ class LevelCubeDataset(Dataset):
                 if self.series_description == 'Axial T2':
                     x0, y0 = y0, x0
 
+                inum = row.instance_number
                 if self.mode == 'train':
                     gap = int(self.patch_size // 10)
                     x0 += np.random.randint(-gap, gap+1)
                     y0 += np.random.randint(-gap, gap+1)
+                    stack = series.get_stack(row.instance_number)
+                    k = stack._get_instance_k(row.instance_number)
+                    k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
+                    inum = stack.instance_numbers[k]
 
-                patch, instance_numbers, patch_offset = series.get_thick_patch(instance_number=row.instance_number, slice_thickness=self.channels, x=x0, y=y0, patch_size=self.patch_size)
+
+                patch, instance_numbers, patch_offset = series.get_thick_patch(instance_number=inum, slice_thickness=self.channels, x=x0, y=y0, patch_size=self.patch_size)
                 lev = level_dict[row.level]
                 x[lev] = patch.transpose(1,2,0)
                 patch_offsets[lev, 0] = patch_offset[0]
@@ -186,6 +192,7 @@ class AllLevelCubeDataset(LevelCubeDataset):
             target_stack, target_series, dist = study.find_closest_stack_and_series(series_description=series_description, world_x=world_x, world_y=world_y, world_z=world_z, required_in=False)
             if target_stack is not None:
                 k, proj_x, proj_y = target_stack.get_pixel_from_world(world_x=world_x, world_y=world_y, world_z=world_z)
+                k = np.clip(k, 0, len(target_stack.instance_numbers) - 1)
                 inum, px, py = target_stack.instance_numbers[k], proj_x, proj_y
                 if series_description == 'Axial T2':
                     px, py = py, px
@@ -193,7 +200,7 @@ class AllLevelCubeDataset(LevelCubeDataset):
                 return patch
         except np.linalg.LinAlgError:
             pass
-        final_size = self.patch_size, self.patch_size, int(self.channels)
+        final_size = channels, patch_size, patch_size
         return np.zeros(final_size, dtype=np.uint8)
 
     def __getitem__(self, idx):
@@ -229,6 +236,7 @@ class AllLevelCubeDataset(LevelCubeDataset):
 
         for i in range(5):
             world_x, world_y, world_z = world_coordinates[i]
+            # TODO: Add a small randomness here
             sagittal_t2_x[i] = self.get_cube(study, 'Sagittal T2/STIR', world_x, world_y, world_z, self.sagittal_t2_patch_size, self.sagittal_t2_channels)
             sagittal_t1_x[i] = self.get_cube(study, 'Sagittal T1', world_x, world_y, world_z, self.sagittal_t1_patch_size, self.sagittal_t1_channels)
             axial_t2_x[i] = self.get_cube(study, 'Axial T2', world_x, world_y, world_z, self.axial_t2_patch_size, self.axial_t2_channels)
@@ -245,7 +253,7 @@ class AllLevelCubeDataset(LevelCubeDataset):
             axial_t2_x = axial_t2_x.transpose(2, 3, 1, 0).reshape(self.axial_t2_patch_size, self.axial_t2_patch_size, -1)
             axial_t2_x = self.transform(image=axial_t2_x)['image'].reshape(self.axial_t2_patch_size, self.axial_t2_patch_size, self.axial_t2_channels, -1).transpose(3, 2, 0, 1)
     
-        return torch.tensor(sagittal_t2_x, dtype=torch.float) / 255.0, torch.tensor(sagittal_t1_x, dtype=torch.float) / 255.0, torch.tensor(axial_t2_x, dtype=torch.float) / 255.0, target
+        return (torch.tensor(sagittal_t2_x, dtype=torch.float) / 255.0, torch.tensor(sagittal_t1_x, dtype=torch.float) / 255.0, torch.tensor(axial_t2_x, dtype=torch.float) / 255.0), target
 
     def __len__(self):
         return len(self.study_ids)
@@ -386,7 +394,7 @@ class AllLevelCubeLeftRightDataset(Dataset):
                 right_t = right_targets[key]
                 target[key] = torch.stack([left_t, right_t], dim=1)
 
-        return sagittal_t2_x, sagittal_t1_x, axial_t2_x, target
+        return (sagittal_t2_x, sagittal_t1_x, axial_t2_x), target
         
     def __len__(self):
         return len(self.left_dataset)
