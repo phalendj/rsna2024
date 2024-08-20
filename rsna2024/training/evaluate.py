@@ -19,7 +19,6 @@ from hydra.core.hydra_config import HydraConfig
 
 try:
     from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS
-    from utils import relative_directory
     import utils as rsnautils
     from datasets import factory as dsfactory
     import loss_functions as lffactory
@@ -27,7 +26,6 @@ try:
     import models
 except:
     from ..datasets import load_train_files, load_test_files, LEVELS, CONDITIONS
-    from ..utils import relative_directory
     from .. import utils as rsnautils
     from ..datasets import factory as dsfactory
     from .. import loss_functions as lffactory
@@ -40,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 def evaluate(model, cfg):
     rsnautils.CLEAN = False
-    df, __, __ = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
+    df, __, __ = load_train_files(relative_directory=rsnautils.relative_directory, clean=rsnautils.CLEAN)
     # load sample submission file
     device = 'cuda:0'
 
@@ -143,15 +141,15 @@ def predict(cfg):
         mode = 'valid'
 
     if mode == 'valid':
-        df, dfc, dfd = load_train_files(relative_directory, clean=False)
+        df, dfc, dfd = load_train_files(rsnautils.relative_directory, clean=False)
         if cfg.clean:
             rsnautils.set_clean(False)
-            df_clean, __, __ = load_train_files(relative_directory, clean=True)
+            df_clean, __, __ = load_train_files(rsnautils.relative_directory, clean=True)
             df_clean_i = df_clean.set_index('study_id')
         else:
             df_clean_i = df.set_index('study_id')
     else:
-        dfd = load_test_files(relative_directory)
+        dfd = load_test_files(rsnautils.relative_directory)
         df_clean_i = pd.DataFrame([[-1, -1]], columns=['study_id', 'fold']).set_index('study_id')
     device = 'cuda:0'
 
@@ -224,15 +222,15 @@ def generate_instance_numbers(cfg):
 
 
     if mode == 'valid':
-        df, dfc, dfd = load_train_files(relative_directory, clean=False)
+        df, dfc, dfd = load_train_files(rsnautils.relative_directory, clean=False)
         if cfg.clean:
             rsnautils.set_clean(False)
-            df_clean, __, __ = load_train_files(relative_directory, clean=True)
+            df_clean, __, __ = load_train_files(rsnautils.relative_directory, clean=True)
             df_clean_i = df_clean.set_index('study_id')
         else:
             df_clean_i = df.set_index('study_id')
     else:
-        dfd = load_test_files(relative_directory)
+        dfd = load_test_files(rsnautils.relative_directory)
         df_clean_i = pd.DataFrame([[-1, -1]], columns=['study_id', 'fold']).set_index('study_id')
 
 
@@ -428,15 +426,15 @@ def generate_xy_values(cfg):
 
 
     if mode == 'valid':
-        df, dfc, dfd = load_train_files(relative_directory, clean=False)
+        df, dfc, dfd = load_train_files(rsnautils.relative_directory, clean=False)
         if cfg.clean:
             rsnautils.set_clean(False)
-            df_clean, __, __ = load_train_files(relative_directory, clean=True)
+            df_clean, __, __ = load_train_files(rsnautils.relative_directory, clean=True)
             df_clean_i = df_clean.set_index('study_id')
         else:
             df_clean_i = df.set_index('study_id')
     else:
-        dfd = load_test_files(relative_directory)
+        dfd = load_test_files(rsnautils.relative_directory)
         df_clean_i = pd.DataFrame([[-1, -1]], columns=['study_id', 'fold']).set_index('study_id')
 
 
