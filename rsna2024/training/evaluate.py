@@ -129,6 +129,87 @@ def evaluate(model, cfg):
     logger.info(f'Official CV score: {scr}')
 
 
+def predict(cfg):
+    rsnautils.CLEAN = False
+    logger.info('Generate predictions')
+    if cfg.load_directory is None:
+        model_directory = Path(HydraConfig.get().runtime.output_dir)
+    else:
+        model_directory = Path(cfg.load_directory)
+
+    if cfg.mode == 'test':
+        mode = 'test'
+    else:
+        mode = 'valid'
+
+    if mode == 'valid':
+        df, dfc, dfd = load_train_files(relative_directory, clean=False)
+        if cfg.clean:
+            rsnautils.set_clean(False)
+            df_clean, __, __ = load_train_files(relative_directory, clean=True)
+            df_clean_i = df_clean.set_index('study_id')
+        else:
+            df_clean_i = df.set_index('study_id')
+    else:
+        dfd = load_test_files(relative_directory)
+        df_clean_i = pd.DataFrame([[-1, -1]], columns=['study_id', 'fold']).set_index('study_id')
+    device = 'cuda:0'
+
+    all_models = []
+    for fold in cfg.training.use_folds:
+        model = models.create_model(cfg.model, fold=fold)
+        fname = model_directory / (model.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading model from {fname}')
+        model.load_state_dict(torch.load(fname))
+        __ = model.eval()
+        all_models.append(model.to(device))
+
+    autocast = torch.autocast('cuda', enabled=cfg.training.use_amp, dtype=torch.half) # you can use with T4 gpu. or newer
+    w = torch.arange(30)
+    valid_ds = dsfactory.create_dataset(study_ids=dfd.study_id.unique(), mode=mode, cfg=cfg.dataset)
+    valid_dl = DataLoader(valid_ds,
+                        batch_size=cfg.training.batch_size,
+                        shuffle=False,
+                        pin_memory=True,
+                        drop_last=False,
+                        num_workers=cfg.training.workers)
+
+    model_predictions = []
+        
+    label_columns = valid_ds.labels
+    N_LABELS = len(label_columns)
+    with tqdm(valid_dl, leave=True) as pbar:
+        with torch.no_grad():
+            for idx, (x, t) in enumerate(pbar):
+                if isinstance(x, tuple) or isinstance(x, list):
+                    x1, x2, x3 = x
+                    x1 = x1.to(device)
+                    x2 = x2.to(device)
+                    x3 = x3.to(device)
+                    with autocast:
+                        y = model(x1, x2, x3)
+                else:
+                    x = x.to(device)
+                    with autocast:
+                        y = model(x)
+                study_ids = t['study_id'][:, 0]
+                
+                for col in range(N_LABELS):
+                    pred = y['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
+                    lab = label_columns[col]
+                    for i in range(len(study_ids)):
+                        row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
+                        model_predictions.append(row)
+                        
+    new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
+    
+    fname = model_directory / 'submission.csv'
+    if mode == 'test':
+        fname = 'submission.csv'
+    logger.info(f'Writing result to {fname}')
+    new_pred.to_csv(fname, index=False)
+
+
 def generate_instance_numbers(cfg):
     logger.info('Generate instance numbers file')
     if cfg.load_directory is None:
@@ -294,9 +375,12 @@ def fill_coordinates(row, study, dft, df):
     series = study.get_series(row.series_id)
     stack = series.get_stack(row.instance_number)
     world_x, world_y, world_z = stack.get_world_coordinates(instance_number=row.instance_number, x=row.x, y=row.y)
-    fold = df[df.study_id == study.study_id].iloc[0].fold
+    fold = -1 if df is None else df[df.study_id == study.study_id].iloc[0].fold
     condition = row.condition
-    tdft = dft[dft.study_id.isin(df[df.fold != fold].study_id.unique()) & (dft.condition == condition) & (dft.level == row.level)]
+    if df is None:
+        tdft = dft[(dft.condition == condition) & (dft.level == row.level)]
+    else:
+        tdft = dft[dft.study_id.isin(df[df.fold != fold].study_id.unique()) & (dft.condition == condition) & (dft.level == row.level)]
     condition_lower = condition.lower().replace(' ', '_')
     CONDITION_2_SERIES_DESC = {'Spinal Canal Stenosis': 'Sagittal T2/STIR',
                          'Left Neural Foraminal Narrowing': 'Sagittal T1',
@@ -337,6 +421,25 @@ def generate_xy_values(cfg):
     
     device = 'cuda:0'
 
+    if cfg.mode == 'test':
+        mode = 'test'
+    else:
+        mode = 'valid'
+
+
+    if mode == 'valid':
+        df, dfc, dfd = load_train_files(relative_directory, clean=False)
+        if cfg.clean:
+            rsnautils.set_clean(False)
+            df_clean, __, __ = load_train_files(relative_directory, clean=True)
+            df_clean_i = df_clean.set_index('study_id')
+        else:
+            df_clean_i = df.set_index('study_id')
+    else:
+        dfd = load_test_files(relative_directory)
+        df_clean_i = pd.DataFrame([[-1, -1]], columns=['study_id', 'fold']).set_index('study_id')
+
+
     all_models = []
     for fold in cfg.training.use_folds:
         model = models.create_model(cfg.model, fold=fold)
@@ -346,13 +449,7 @@ def generate_xy_values(cfg):
         __ = model.eval()
         all_models.append(model.to(device))
 
-    df_clean, __, __ = load_train_files(relative_directory, clean=cfg.clean)
-    df_clean_i = df_clean.set_index('study_id')
-    rsnautils.CLEAN = False
-
-    df, dfc, dfd = load_train_files(relative_directory, clean=False)
-    df_valid = df
-    valid_ds = dsfactory.create_dataset(study_ids=df_valid.study_id.unique(), mode='valid', cfg=cfg.dataset)
+    valid_ds = dsfactory.create_dataset(study_ids=dfd.study_id.unique(), mode=mode, cfg=cfg.dataset)
 
     old_dfc = pd.read_csv(cfg.dataset.center_file)
 
@@ -409,18 +506,27 @@ def generate_xy_values(cfg):
     pred_center_df = pd.DataFrame(results)
     pred_center_df = pred_center_df.drop('instance_number', axis=1).merge(old_dfc[['study_id', 'series_id', 'condition', 'level', 'instance_number']], on=['study_id', 'series_id', 'condition', 'level'])[['study_id', 'series_id', 'instance_number', 'condition', 'level', 'x', 'y']]
     fname = model_directory / 'predicted_center_coordinates.csv'
+    if mode == 'test':
+        fname = 'predicted_center_coordinates.csv'
+    logger.info(f'Writing result to {fname}')
     pred_center_df.to_csv(fname, index=False)
     logger.info(f'Wrote output to {fname}')
 
     logger.info('Fill out dataframe')
-    dft = pd.read_csv(f'{cfg.directories.relative_directory}/train_coordinates_translated.csv')
+    if mode == 'test':
+        dft = pd.read_csv(f'{model_directory}/train_coordinates_translated.csv')
+    else:
+        dft = pd.read_csv(f'{cfg.directories.relative_directory}/train_coordinates_translated.csv')
 
     res = []
     for study in tqdm(valid_ds.studies):
         tmp = pred_center_df[pred_center_df.study_id == study.study_id]
         for row in tmp.itertuples():
             try:
-                filled_df = fill_coordinates(row, study=study, dft=dft, df=df)
+                if mode == 'test':
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=None)
+                else:
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=df)
                 res.append(filled_df)
             except np.linalg.LinAlgError:
                 print(f'LinAlg Error on {study}')
@@ -430,5 +536,8 @@ def generate_xy_values(cfg):
     temp_filler = pd.concat(res)
     full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
     fname = model_directory / 'all_predicted_center_coordinates.csv'
+    if mode == 'test':
+        fname = 'all_predicted_center_coordinates.csv'
+    logger.info(f'Writing result to {fname}')
     full_pred_center.to_csv(fname, index=False)
     logger.info(f'Wrote output to {fname}')

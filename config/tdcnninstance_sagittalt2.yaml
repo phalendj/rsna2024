@@ -4,7 +4,7 @@ debug: False
 train: False
 result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
 load_directory: /home/phalendj/code/rsna2024/outputs/2024-08-20/11-23-25/ #/home/phalendj/code/rsna2024/outputs/2024-08-20/09-45-43  # For reloads
-mode: 'valid'
+mode: valid
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024

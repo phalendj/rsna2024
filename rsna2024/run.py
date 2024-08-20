@@ -38,6 +38,8 @@ def run(cfg: DictConfig) -> None:
         evaluation.generate_instance_numbers(cfg)
     elif cfg.result == 'sagittalcenters':
         evaluation.generate_xy_values(cfg=cfg)
+    elif cfg.result == 'predict':
+        evaluation.predict(cfg=cfg)
 
 
 if __name__ == '__main__':
