@@ -18,7 +18,7 @@ PRELOAD = True
 def set_directories(cfg):
     global relative_directory
     global image_directory
-    logger.info(f'Set directoreis to {cfg.relative_directory} / {cfg.image_directory}')
+    logger.info(f'Set directories to {cfg.relative_directory} / {cfg.image_directory}')
     relative_directory = cfg.relative_directory
     image_directory = cfg.relative_directory + '/' + cfg.image_directory + '/'
 
