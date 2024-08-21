@@ -22,6 +22,15 @@ def create_model(cfg, fold):
         return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
     elif cfg.name == 'tdcnnlevelside':
         return tdcnn.TDCNNLevelSideModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
+    elif cfg.name == 'tdcnn2':
+        return tdcnn.TDCNNModel2(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
+    elif cfg.name == 'tdcnninstance2':
+        return tdcnn.TDCNNInstanceModel2(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
+    elif cfg.name == 'tdcnnlevel2':
+        return tdcnn.TDCNNLevelModel2(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
+    elif cfg.name == 'tdcnnlevelside2':
+        return tdcnn.TDCNNLevelSideModel2(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers)
+
     elif cfg.name == 'fusedtdcnnlevel':
         model = tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, 
                                           sagittal_t2_model=cfg.sagittal_t2,

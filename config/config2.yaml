@@ -58,7 +58,7 @@ loss:
   # patch_size: 512
   
 model:
-  name: tdcnnlevelside
+  name: tdcnnlevelside2
   model_name: densenet121
   nclasses: 3
   subsize: 64

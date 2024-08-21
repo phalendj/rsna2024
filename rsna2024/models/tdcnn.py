@@ -308,3 +308,178 @@ class DoubleTDCNNUNetPreloadZoom(nn.Module):
 
 
         return y
+    
+
+
+class PositionalEncoding(nn.Module): 
+    """Positional encoding."""
+    def __init__(self, num_hiddens, dropout=0.0, max_len=50):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        # Create a long enough P
+        self.P = torch.zeros((1, max_len, num_hiddens))
+        X = torch.arange(max_len, dtype=torch.float32).reshape(
+            -1, 1) / torch.pow(10000, torch.arange(
+            0, num_hiddens, 2, dtype=torch.float32) / num_hiddens)
+        self.P[:, :, 0::2] = torch.sin(X)
+        self.P[:, :, 1::2] = torch.cos(X)
+
+    def forward(self, X):
+        X = X + self.P[:, :X.shape[1], :].to(X.device)
+        return self.dropout(X)
+
+
+class TDCNNModel2(nn.Module):
+    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4):
+        super().__init__()
+        self.feature_model = timm.create_model(
+                                    model_name,
+                                    pretrained=rsnautils.PRELOAD, 
+                                    features_only=False,
+                                    in_chans=in_c,
+                                    num_classes=n_classes,
+                                    global_pool='avg'
+                                    )
+        X = torch.randn(2, 1, *img_size)
+        Y = self.feature_model.forward_features(X)
+        d_model = Y.shape[1]
+        logger.info(f'Feature dimension for tdcnn {d_model}')
+        
+        self.pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=0.1)
+        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True)
+        self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.classifier = nn.LazyLinear(n_classes)
+
+        self.model_name = model_name
+    
+    def load_feature_model(self, fname):
+        self.feature_model.load_state_dict(torch.load(fname))
+        
+    def freeze_features(self):
+        print('freeze features')
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+        
+    def unfreeze_features(self):
+        print('unfreeze features')
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def name(self):
+        return f'td_cnn2_{self.model_name}'
+    
+    def forward_encode(self, x):
+        B, I, H, W = x.shape
+        x = x.unsqueeze(2).flatten(0,1)
+        y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
+        y = self.pool(y).flatten(1)  # B*I, D
+        y = y.reshape(B, I, -1)
+        y = self.pos_encoding(y)
+        y = self.encoder(y)  # B, I, 1024
+        return y
+    
+    def forward_features(self, x):
+        # B, I, H, W = x.shape
+        y = self.forward_encode(x)  # B, I, 1024
+    
+        #TODO: Try different pooling methods: avg, max, catavgmax
+        y = F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        # y = F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        # y = torch.concatenate([F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1), F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)], dim=1)
+        return y
+
+    def forward(self, x):
+        y = self.forward_features(x)
+        return {'labels': self.classifier(y)}
+
+
+class TDCNNInstanceModel2(TDCNNModel2):
+    def name(self):
+        return f'td_cnn2_instance_{self.model_name}'
+    
+    def forward(self, x):
+        y = self.forward_encode(x)
+        return {'instance_labels': self.classifier(y)}
+
+
+class TDCNNLevelModel2(TDCNNModel2):
+    def level_forward(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        t = super().forward(x)
+        y = t['labels']
+        # y.shape = B*L, nclasses
+        y = y.reshape(B, L, -1, 3)  # Now B, Condition, Level, diagnosis
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+        return y
+    
+    def level_forward_features(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        y = super().forward_features(x)
+        # y.shape = B*L, feature dim (1024 or something like that)
+        y = y.reshape(B, L, -1)  # Now B, Level, feature dim
+        return y
+
+    def name(self):
+        return f'td_cnn2_level_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname))
+
+    def freeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+
+    def unfreeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def forward(self, x):
+        y = self.level_forward(x)
+        return {'labels': y}
+    
+
+class TDCNNLevelSideModel2(TDCNNModel2):
+    def level_forward(self, x):
+        B, L, S, I, H, W = x.shape
+        assert S == 2
+        x = x.flatten(0, 2)  # Now first index is is B0L0S0, B0L0S1, B0L1S0, ..., B0L4S1, B1L0S0, B1L0S1,B1L1S0, ... , dim = (B*L*S, I, H, W)
+        t = super().forward(x)
+        y = t['labels']
+        # y.shape = B*L*S, nclasses
+        y = y.reshape(B, L, S, -1)  # Now B, Level, Side, diagnosis
+        assert y.shape[-1] == 3
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+        return y
+    
+    def level_forward_features(self, x):
+        B, L, S, I, H, W = x.shape
+        x = x.flatten(0, 2)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        y = super().forward_features(x)
+        # y.shape = B*L, feature dim (1024 or something like that)
+        y = y.reshape(B, L, S, -1)  # Now B, Level, feature dim
+        return y
+
+    def name(self):
+        return f'td_cnn2_level_side_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname))
+
+    def freeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+
+    def unfreeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def forward(self, x):
+        y = self.level_forward(x)
+        return {'labels': y}
