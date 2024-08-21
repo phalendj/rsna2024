@@ -187,12 +187,13 @@ class SegmentationCenterDataset(Dataset):
         else:
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             data = np.zeros(final_size)
+            target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
+            target['offsets'] = torch.zeros((2,), dtype=torch.float)
+            target['scalings'] = torch.ones((2,), dtype=torch.float)
             if full_targets:
-                target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4
-                target['offsets'] = torch.zeros((2,), dtype=torch.float)
-                target['scalings'] = torch.ones((2,), dtype=torch.float)
+                target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
                 target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
-                target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
+                
 
         data = data.transpose(2, 0, 1)
 
