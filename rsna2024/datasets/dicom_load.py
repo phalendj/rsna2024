@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import pandas as pd
+import logging
 
 import pydicom
 
@@ -35,6 +36,9 @@ try:
 except ImportError:
     from .. import utils as rsnautils
     from ..datasets import create_column
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_study_directory(study_id):
@@ -530,8 +534,11 @@ class OrientedStudy(object):
         
         self.series_dict = {}
         for row in study.itertuples():
-            s = OrientedSeries(get_series_directory(row.study_id, row.series_id), series_description=row.series_description)
-            self.series_dict[row.series_id] = s
+            try:
+                s = OrientedSeries(get_series_directory(row.study_id, row.series_id), series_description=row.series_description)
+                self.series_dict[row.series_id] = s
+            except FileNotFoundError:
+                logger.error(f'No folder or files found for {row}')
         
         if labels_df is not None:
             self.labels = labels_df[labels_df.study_id == self.study_id].iloc[0].to_dict()
