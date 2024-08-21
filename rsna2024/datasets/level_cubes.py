@@ -104,7 +104,7 @@ class LevelCubeDataset(Dataset):
                 patch_offsets[lev, 1] = patch_offset[1]
                 series_ids[lev] = row.series_id
                 saves.append((lev, row.level, series.series_id, instance_numbers, patch_offset))
-            except KeyError:
+            except (KeyError, ValueError):
                 pass
 
         target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)

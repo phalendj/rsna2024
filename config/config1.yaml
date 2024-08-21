@@ -4,23 +4,23 @@ debug: false
 train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
 load_directory: #/home/phalendj/code/rsna2024/outputs/2024-08-19/09-45-43  # For reloads
-
+mode: valid
 
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
   image_directory: train_images
 dataset:
-  name: LevelCubeDataset
+  name: SegmentationCenterDataset
   image_size:
   - 512
   - 512
   series_description: Sagittal T2/STIR
   conditions:
   - Spinal Canal Stenosis
-  channels: 5
+  channels: 15
   subsize: 64
   aug_size: 0.1
-  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
+  # center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75
     normalize: true
@@ -28,7 +28,7 @@ dataset:
     contrast: true
     blur: true
     distort: true
-    rotate: true
+    rotate: False
     crop:
       use: false
       size: 512
@@ -37,11 +37,9 @@ dataset:
 loss:
   name: WeightedCrossEntropy
 model:
-  name: tdcnnlevel
-  model_name: densenet121
-  nclasses: 3
-  subsize: 64
-  num_layers: 4
+  name: ResNet3D18
+  nclasses: 15
+  
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup

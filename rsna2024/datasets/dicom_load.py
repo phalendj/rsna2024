@@ -448,7 +448,7 @@ class OrientedSeries(object):
             return
         
         save = True
-        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl'):
+        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl') and rsnautils.PRELOAD:
             try:
                 with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
                     self.dicom_stacks = pickle.load(f)

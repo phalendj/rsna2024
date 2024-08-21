@@ -1,6 +1,7 @@
 from . import vision2d
 from . import unet
 from . import tdcnn
+from . import conv3d
 
 def create_model(cfg, fold):
     if cfg.name == 'vision2d':
@@ -48,5 +49,8 @@ def create_model(cfg, fold):
         return tdcnn.DoubleTDCNNUNetPreloadZoom(in_channels=cfg.channels, out_classes=cfg.unet_classes, patch_size=cfg.patch_size, encoder_name=cfg.encodername, 
                                                 classifier_name=cfg.model_name, classifier_classes=cfg.nclasses, subsize=cfg.subsize, load_dir=cfg.preload, fold=fold, 
                                                 condition=cfg.condition)
+    
+    elif cfg.name == 'ResNet3D18':
+        return conv3d.ResNet3D18(cfg.nclasses)
     else:
         raise NotImplementedError

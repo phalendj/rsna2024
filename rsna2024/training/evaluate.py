@@ -51,7 +51,7 @@ def evaluate(model, cfg):
             output_directory = Path(cfg.load_directory)
         fname = output_directory / (model.name() + f'_fold{fold}.pth')
         logger.info(f'Loading Model from {fname}')
-        model.load_state_dict(torch.load(fname))
+        model.load_state_dict(torch.load(fname, weights_only=True))
         model.to(device)
         model.eval()
 
@@ -158,7 +158,7 @@ def predict(cfg):
         model = models.create_model(cfg.model, fold=fold)
         fname = model_directory / (model.name() + f'_fold{fold}.pth')
         logger.info(f'Loading model from {fname}')
-        model.load_state_dict(torch.load(fname))
+        model.load_state_dict(torch.load(fname, weights_only=True))
         __ = model.eval()
         all_models.append(model.to(device))
 
@@ -241,7 +241,7 @@ def generate_instance_numbers(cfg):
         model = models.create_model(cfg.model, fold=fold)
         fname = model_directory / (model.name() + f'_fold{fold}.pth')
         logger.info(f'Loading model from {fname}')
-        model.load_state_dict(torch.load(fname))
+        model.load_state_dict(torch.load(fname, weights_only=True))
         __ = model.eval()
         all_models.append(model.to(device))
 
@@ -443,7 +443,7 @@ def generate_xy_values(cfg):
         model = models.create_model(cfg.model, fold=fold)
         fname = model_directory / (model.name() + f'_fold{fold}.pth')
         logger.info(f'Loading model from {fname}')
-        model.load_state_dict(torch.load(fname))
+        model.load_state_dict(torch.load(fname, weights_only=True))
         __ = model.eval()
         all_models.append(model.to(device))
 

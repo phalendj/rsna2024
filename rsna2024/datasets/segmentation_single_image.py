@@ -125,65 +125,75 @@ class SegmentationCenterDataset(Dataset):
         series = study.get_largest_series(self.series_description)
         target['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
         if series is not None:
-            instance_number = self.get_instance_number(series=series)
-            stack = series.get_largest_stack()
-            data, instance_numbers = stack.get_thick_slice(instance_number=instance_number, slice_thickness=self.channels)
-            target['instance_numbers'] = torch.as_tensor(instance_numbers, dtype=torch.long)
-            offsets = np.zeros(2)
-            scalings = np.ones(2)
+            try:
+                instance_number = self.get_instance_number(series=series)
+                stack = series.get_largest_stack()
+                data, instance_numbers = stack.get_thick_slice(instance_number=instance_number, slice_thickness=self.channels)
+                target['instance_numbers'] = torch.as_tensor(instance_numbers, dtype=torch.long)
+                offsets = np.zeros(2)
+                scalings = np.ones(2)
 
-            data = data.transpose(1, 2, 0)
-            H, W, D = data.shape
-            if H > W:
-                diff = H-W
+                data = data.transpose(1, 2, 0)
+                H, W, D = data.shape
+                if H > W:
+                    diff = H-W
+                    if self.mode == 'train':
+                        offset = np.random.randint(diff)
+                    else:
+                        offset = int(diff//2)
+                    data = data[offset:offset+W]
+                    offsets[0] = -offset
+                    H = W
+                elif W > H:
+                    diff = W-H
+                    if self.mode == 'train':
+                        offset = np.random.randint(diff)
+                    else:
+                        offset = int(diff//2)
+
+                    data = data[:, offset:offset+H]
+                    offsets[1] = -offset
+                    W = H
+
+                data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
+                if len(data.shape) == 2:
+                    data = np.expand_dims(data, 2)
+                scalings[0] = self.image_size[0]/H
+                scalings[1] = self.image_size[1]/W
+
+                target['offsets'] = torch.tensor(offsets)
+                target['scalings'] = torch.tensor(scalings)
+
+                if full_targets:
+                    series_mask = self.coordinate_df.series_id == series.series_id
+                    used_instances = self.coordinate_df.loc[series_mask, 'instance_number'].unique()
+                    slice_classification = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
+                    target['slice_classification'] = torch.as_tensor(slice_classification).long()
+
+                    tmp = self.coordinate_df.loc[series_mask].set_index('level')
+                    
+                    centers = np.array([tmp.loc[level, ['x', 'y']].values if level in tmp.index else np.array([-1.e4, -1.e4]) for level in LEVELS], dtype=float)
+
+                    centers += offsets
+                    centers *= scalings
+                    centers = torch.tensor(centers, dtype=torch.float)
+                    target['centers'] = centers
+
+                if self.transform is not None:
+                    data = self.transform(image=data)['image']
+
                 if self.mode == 'train':
-                    offset = np.random.randint(diff)
-                else:
-                    offset = int(diff//2)
-                data = data[offset:offset+W]
-                offsets[0] = -offset
-                H = W
-            elif W > H:
-                diff = W-H
-                if self.mode == 'train':
-                    offset = np.random.randint(diff)
-                else:
-                    offset = int(diff//2)
-
-                data = data[:, offset:offset+H]
-                offsets[1] = -offset
-                W = H
-
-            data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
-            if len(data.shape) == 2:
-                data = np.expand_dims(data, 2)
-            scalings[0] = self.image_size[0]/H
-            scalings[1] = self.image_size[1]/W
-
-            target['offsets'] = torch.tensor(offsets)
-            target['scalings'] = torch.tensor(scalings)
-
-            if full_targets:
-                series_mask = self.coordinate_df.series_id == series.series_id
-                used_instances = self.coordinate_df.loc[series_mask, 'instance_number'].unique()
-                slice_classification = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
-                target['slice_classification'] = torch.as_tensor(slice_classification).long()
-
-                tmp = self.coordinate_df.loc[series_mask].set_index('level')
-                
-                centers = np.array([tmp.loc[level, ['x', 'y']].values if level in tmp.index else np.array([-1.e4, -1.e4]) for level in LEVELS], dtype=float)
-
-                centers += offsets
-                centers *= scalings
-                centers = torch.tensor(centers, dtype=torch.float)
-                target['centers'] = centers
-
-            if self.transform is not None:
-                data = self.transform(image=data)['image']
-
-            if self.mode == 'train':
-                data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
-                target['centers'] = centers
+                    data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
+                    target['centers'] = centers
+            except ValueError:
+                final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
+                data = np.zeros(final_size)
+                target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
+                target['offsets'] = torch.zeros((2,), dtype=torch.float)
+                target['scalings'] = torch.ones((2,), dtype=torch.float)
+                if full_targets:
+                    target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
+                    target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)    
         else:
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             data = np.zeros(final_size)
