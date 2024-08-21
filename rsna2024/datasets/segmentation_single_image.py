@@ -12,12 +12,10 @@ from torch.utils.data import Dataset
 import torchvision
 
 try:
-    from utils import relative_directory
     import utils as rsnautils
     from datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
     import datasets.dicom_load as dcmload
 except ImportError:
-    from ..utils import relative_directory
     from .. import utils as rsnautils
     from ..datasets import load_train_files, load_test_files, LEVELS, CONDITIONS, create_column
     from . import dicom_load as dcmload
@@ -81,12 +79,12 @@ class SegmentationCenterDataset(Dataset):
         self.aug_size = aug_size
         self.transform = transform
         if self.mode == 'train' or self.mode == 'valid':
-            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
+            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=rsnautils.relative_directory, clean=rsnautils.CLEAN)
         else:
             self.labels_df = None
             self.coordinate_df = None
             logger.info(f'In Test Mode for {study_ids}')
-            self.series_description_df = load_test_files(relative_directory=relative_directory)
+            self.series_description_df = load_test_files(relative_directory=rsnautils.relative_directory)
 
         # Check all study ids are in loaded files
         
