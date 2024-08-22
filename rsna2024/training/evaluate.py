@@ -368,6 +368,17 @@ def detect_best_levels(OUT, cut = 0.5):
     return pts
 
 
+def detect_single_levels(OUT, cut = 0.9):
+    d = OUT.shape[0]
+    pts = np.zeros((d, 2))
+    for i in range(d):
+        x, y = torch.where(OUT[i]>cut)
+        pts[i, 0] = x.float().mean().item()
+        pts[i, 1] = y.float().mean().item()
+
+    return pts
+
+
 def fill_coordinates(row, study, dft, df):
     assert row.study_id == study.study_id
     series = study.get_series(row.series_id)
@@ -488,14 +499,19 @@ def generate_xy_values(cfg):
                     OUT = preds[fold]['masks'][i]
                 else:
                     OUT = torch.mean(torch.stack([pred['masks'][i] for pred in preds], dim=0), dim=0)
+                    min_values = OUT.flatten(1,2).min(dim=1)[0].view(OUT.shape[0],1,1)
+                    max_values = OUT.flatten(1,2).max(dim=1)[0].view(OUT.shape[0],1,1)
+                    OUT = (OUT - min_values)/(max_values - min_values)
 
-                cut = 0.1
-                pts = detect_best_levels(OUT.float(), cut=cut)
-                while len(pts) < 5:
-                    cut /= 2
-                    pts = detect_best_levels(OUT.float(), cut=cut)
-                pts = pts/scaling - offset
-                pts = np.array(sorted(pts, key=lambda x: x[-1]))
+                # cut = 0.1
+                # pts = detect_best_levels(OUT.float(), cut=cut)
+                # while len(pts) < 5:
+                #     cut /= 2
+                #     pts = detect_best_levels(OUT.float(), cut=cut)
+                # pts = pts/scaling - offset
+                # pts = np.array(sorted(pts, key=lambda x: x[-1]))
+
+                pts = detect_single_levels(OUT)/scaling - offset
                 for k in range(5):
                     X, Y = pts[k]
                     lev = LEVELS[k]

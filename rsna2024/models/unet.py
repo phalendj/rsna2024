@@ -5,7 +5,10 @@ import torch.nn as nn
 import segmentation_models_pytorch as smp
 import numpy as np
 from . import vision2d
-import utils as rsnautils
+try:
+    from .. import utils as rsnautils
+except ImportError:
+    import utils as rsnautils
 
 logger = logging.getLogger(__name__)
 

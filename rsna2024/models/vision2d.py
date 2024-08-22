@@ -1,6 +1,9 @@
 import timm
 import torch.nn as nn
-import utils as rsnautils
+try:
+    from .. import utils as rsnautils
+except ImportError:
+    import utils as rsnautils
 
 
 class RSNA24Model(nn.Module):

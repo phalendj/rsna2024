@@ -311,6 +311,18 @@ class OrientedStack:
         i, j, k, _1_ = np.round(np.dot(np.linalg.inv(affine), v))
         return int(k), int(i), int(j)
     
+    def get_instance_xy_from_world(self, world_x, world_y, world_z) -> tuple[int, int, int]:
+        """Given the world coordinates, return the pixel of the data array"""
+        v = np.array([world_x, world_y, world_z, 1])
+        affine = self.dicom_info['affine']
+        i, j, k, _1_ = np.round(np.dot(np.linalg.inv(affine), v))
+        
+        Z, X, Y = self.data.shape
+        k = np.clip(k, 0, Z-1)
+        i = np.clip(i, 0, X-1)
+        i = np.clip(i, 0, Y-1)
+        return self.instance_numbers[int(k)], int(i), int(j)
+    
     def get_thick_slice(self, instance_number: int, slice_thickness: int, boundary_instance: int|None = None, center: bool = False) -> tuple[np.array, np.array]:
         Z, X, Y = self.data.shape
         
@@ -448,7 +460,7 @@ class OrientedSeries(object):
             return
         
         save = True
-        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl') and rsnautils.PRELOAD:
+        if os.path.exists(self.path_to_dicom + '/saved_oriented.pkl'): #  and rsnautils.PRELOAD:
             try:
                 with open(self.path_to_dicom + '/saved_oriented.pkl', 'rb') as f:
                     self.dicom_stacks = pickle.load(f)
