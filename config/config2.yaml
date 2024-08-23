@@ -12,24 +12,14 @@ directories:
 
 
 dataset:
-  name: LevelCubeLeftRightDataset
-  # name: LevelCubeDataset
+  name: FullLevelDataset
   image_size: [512, 512]
-  # series_description: Sagittal T2/STIR
+  conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
   # conditions: [Spinal Canal Stenosis]
-  series_description: Axial T2
-  conditions: ['Left Subarticular Stenosis', Right Subarticular Stenosis]
-  # series_description: Sagittal T1
-  # conditions: ['Left Neural Foraminal Narrowing', Right Neural Foraminal Narrowing]
-  channels: 7
-  subsize: 64
-
-  # sagittal_t2_channels: 11
-  # sagittal_t2_subsize: 64
-  # sagittal_t1_channels: 11
-  # sagittal_t1_subsize: 64
-  # axial_t2_channels: 5
-  # axial_t2_subsize: 64
+  sagittal_channels: 11
+  sagittal_subsize: 64
+  axial_channels: 7
+  axial_subsize: 80
   aug_size: 0.1
   # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
   # center_file: /data/phalendj/kaggle/rsna2024/train_labels_sagittal_t1.csv
@@ -58,16 +48,15 @@ loss:
   # patch_size: 512
   
 model:
-  name: tdcnnlevelside2
+  name: FullLevelTDCNN
   model_name: densenet121
-  nclasses: 3
-  subsize: 64
+  nclasses: 15
   num_layers: 4
 
 optimization:
   optimizer: AdamW
   scheduler: CosineWithWarmup
-  learning_rate: 1.0e-4
+  learning_rate: 3.0e-5
   weight_decay: 1.e-2
   n_cycles: 0.475
 
@@ -75,9 +64,9 @@ training:
   use_folds: [0, 1, 2, 3, 4]
   # use_folds: [2]
   use_amp: True
-  epochs: 15
-  batch_size: 16
+  epochs: 25
+  batch_size: 24
   grad_acc: 1
-  early_stopping: 3
+  early_stopping: 5
   workers: 12
 

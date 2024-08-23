@@ -94,7 +94,7 @@ class TDCNNLevelModel(TDCNNModel):
         t = super().forward(x)
         y = t['labels']
         # y.shape = B*L, nclasses
-        y = y.reshape(B, L, -1, 3)  # Now B, Condition, Level, diagnosis
+        y = y.reshape(B, L, -1, 3)  # Now B, Level, Condition, diagnosis
         y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
         return y
     

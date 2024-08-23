@@ -72,7 +72,12 @@ def evaluate(model, cfg):
         with tqdm(valid_dl, leave=True) as pbar:
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
-                    if isinstance(x, tuple) or isinstance(x, list):
+                    if isinstance(x, dict):
+                        x = {k: v.to(device) for k, v in x.items()}
+                        with autocast:
+                            y = model(x)
+
+                    elif isinstance(x, tuple) or isinstance(x, list):
                         x1, x2, x3 = x
                         x1 = x1.to(device)
                         x2 = x2.to(device)
@@ -163,7 +168,6 @@ def predict(cfg):
         all_models.append(model.to(device))
 
     autocast = torch.autocast('cuda', enabled=cfg.training.use_amp, dtype=torch.half) # you can use with T4 gpu. or newer
-    w = torch.arange(30)
     valid_ds = dsfactory.create_dataset(study_ids=dfd.study_id.unique(), mode=mode, cfg=cfg.dataset)
     valid_dl = DataLoader(valid_ds,
                         batch_size=cfg.training.batch_size,
@@ -179,25 +183,38 @@ def predict(cfg):
     with tqdm(valid_dl, leave=True) as pbar:
         with torch.no_grad():
             for idx, (x, t) in enumerate(pbar):
-                if isinstance(x, tuple) or isinstance(x, list):
+                if isinstance(x, dict):
+                    x = {k: v.to(device) for k, v in x.items()}
+                    with autocast:
+                        preds = [model(x) for model in all_models]
+
+                elif isinstance(x, tuple) or isinstance(x, list):
                     x1, x2, x3 = x
                     x1 = x1.to(device)
                     x2 = x2.to(device)
                     x3 = x3.to(device)
                     with autocast:
-                        y = model(x1, x2, x3)
+                        preds = [model(x1, x2, x3) for model in all_models]
                 else:
                     x = x.to(device)
                     with autocast:
-                        y = model(x)
-                study_ids = t['study_id'][:, 0]
+                        preds = [model(x) for model in all_models]
+
+                study_ids = t['study_id'][:, 0].numpy()
                 
-                for col in range(N_LABELS):
-                    pred = y['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
-                    lab = label_columns[col]
-                    for i in range(len(study_ids)):
-                        row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
-                        model_predictions.append(row)
+                for i, study_id in enumerate(study_ids):
+                    for col in range(N_LABELS):
+                        if study_id in df_clean_i.index:
+                            fold = df_clean_i.loc[study_id, 'fold']
+                            pred = preds[fold]
+                            pred = pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
+                        else:
+                            pred = torch.mean(torch.stack([pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu() for pred in preds], dim=0), dim=0).numpy()
+
+                        lab = label_columns[col]
+                        for i in range(len(study_ids)):
+                            row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
+                            model_predictions.append(row)
                         
     new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
     
@@ -258,6 +275,11 @@ def generate_instance_numbers(cfg):
 
     with torch.no_grad():
         for x, t in tqdm(valid_dl):
+            if isinstance(x, dict):
+                x = {k: v.to(device) for k, v in x.items()}
+                with autocast:
+                    preds = [model(x) for model in all_models]
+
             if isinstance(x, tuple) or isinstance(x, list):
                 x1, x2, x3 = x
                 x1 = x1.to(device)
@@ -474,7 +496,11 @@ def generate_xy_values(cfg):
                         )
     with torch.no_grad():
         for x, t in tqdm(valid_dl):
-            if isinstance(x, tuple) or isinstance(x, list):
+            if isinstance(x, dict):
+                x = {k: v.to(device) for k, v in x.items()}
+                with autocast:
+                    preds = [model(x) for model in all_models]
+            elif isinstance(x, tuple) or isinstance(x, list):
                 x1, x2, x3 = x
                 x1 = x1.to(device)
                 x2 = x2.to(device)

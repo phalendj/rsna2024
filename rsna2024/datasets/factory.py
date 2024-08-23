@@ -1,6 +1,7 @@
 from . import segmentation_single_image as segmentationsingle
 from . import augmentations as aug
 from . import level_cubes as level_cubes
+from . import full_level as full_level
 
 def create_dataset(study_ids, mode, cfg):
     if cfg.name == 'SegmentationSingleImageDataset':
@@ -106,6 +107,19 @@ def create_dataset(study_ids, mode, cfg):
                                                     series_description=cfg.series_description,
                                                     mode=mode, 
                                                     transform=transform)
+    
+    if cfg.name == 'FullLevelDataset':
+        cfg_aug = cfg.augmentations
+        transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+        return full_level.FullLevelDataset(study_ids=study_ids,
+                                           channels_sag=cfg.sagittal_channels,
+                                           patch_size_sag=cfg.sagittal_subsize,
+                                           channels_ax=cfg.axial_channels,
+                                           patch_size_ax=cfg.axial_subsize,
+                                           conditions=cfg.conditions,
+                                           generated_coordinate_file=cfg.center_file,
+                                           mode=mode, 
+                                           transform=transform)
     # if cfg.name == 'LevelCubeCropZoomDataset':
     #     cfg_aug = cfg.augmentations
     #     transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)

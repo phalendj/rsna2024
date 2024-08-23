@@ -2,6 +2,7 @@ from . import vision2d
 from . import unet
 from . import tdcnn
 from . import conv3d
+from . import full_level_tdcnn
 
 def create_model(cfg, fold):
     if cfg.name == 'vision2d':
@@ -52,5 +53,7 @@ def create_model(cfg, fold):
     
     elif cfg.name == 'ResNet3D18':
         return conv3d.ResNet3D18(cfg.nclasses)
+    elif cfg.name == 'FullLevelTDCNN':
+        return full_level_tdcnn.FullLevelTDCNNModel(model_name=cfg.model_name, n_classes=cfg.nclasses, img_size=(512, 512), num_layers=cfg.num_layers)
     else:
         raise NotImplementedError

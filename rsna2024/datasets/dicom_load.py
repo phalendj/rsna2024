@@ -209,8 +209,10 @@ def load_dicom_stack_2(dicoms, plane: str, reverse_sort=False) -> dict:
     for i, v in enumerate(idx):
         if i == 0:
             continue
-        if not math.isclose(positions[v], positions[tmp[-1]]):
+        if not math.isclose(positions[v], positions[tmp[-1]], abs_tol=1.e-5):
             tmp.append(v)
+        else:
+            logger.warning(f'Skipping {i} {v} {positions[v]}, {positions[tmp[-1]]}')
 
     idx = np.array(tmp).astype('int')
             
@@ -241,6 +243,9 @@ class OrientedStack:
         self.plane = plane
         if plane == 'sagittal':
             self.dicom_info['array'] = self.dicom_info['array'].transpose(0, 2, 1)
+
+    def __repr__(self):
+        return f'OrientedStack({self.instance_numbers})'
 
     @property
     def data(self):
@@ -502,11 +507,15 @@ class OrientedSeries(object):
         best_distance = 1.e10
         best_stack = None
         for stack in self.dicom_stacks:
-            if not required_in or stack.contains_world_point(world_x, world_y, world_z):
-                d = stack.distance_to_center(world_x, world_y, world_z)
-                if d < best_distance:
-                    best_stack = stack
-                    best_distance = d
+            try:
+                if not required_in or stack.contains_world_point(world_x, world_y, world_z):
+                    d = stack.distance_to_center(world_x, world_y, world_z)
+                    if d < best_distance:
+                        best_stack = stack
+                        best_distance = d
+            except np.linalg.LinAlgError as e:
+                logger.error(f'{stack} {e}')
+                raise e
         
         return best_stack, best_distance
 
