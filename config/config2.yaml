@@ -67,6 +67,6 @@ training:
   epochs: 25
   batch_size: 24
   grad_acc: 1
-  early_stopping: 5
+  early_stopping: 15
   workers: 12
 
