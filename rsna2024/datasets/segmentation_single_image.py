@@ -185,7 +185,7 @@ class SegmentationCenterDataset(Dataset):
                 if self.mode == 'train':
                     data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
                     target['centers'] = centers
-            except ValueError:
+            except Exception:
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
                 data = np.zeros(final_size)
                 target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
@@ -221,6 +221,7 @@ class SegmentationPredictedCenterDataset(SegmentationCenterDataset):
         
     def get_instance_number(self, series):
         try:
+            ### This actually a problem, since the instance numbers are not necessarily ordered
             i = self.pred_center_df.loc[self.pred_center_df.series_id == series.series_id, 'instance_number'].values
             median = int(np.median(i))
             if median not in i:
