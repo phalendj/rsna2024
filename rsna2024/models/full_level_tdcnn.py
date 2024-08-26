@@ -29,10 +29,13 @@ class FullLevelTDCNNModel(nn.Module):
                                     )
         X = torch.randn(2, 1, *img_size)
         Y = self.feature_model.forward_features(X)
-        self.d_model = Y.shape[1]
+
+        asize = 1
+
+        self.d_model = Y.shape[1] * asize**2
         logger.info(f'Feature dimension for tdcnn {self.d_model}')
         
-        self.pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.pool = nn.AdaptiveMaxPool2d(output_size=asize)
         self.pos_encoding = PositionalEncoding(num_hiddens=self.d_model, dropout=0.0)
         layer = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=8, batch_first=True)
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
@@ -58,6 +61,12 @@ class FullLevelTDCNNModel(nn.Module):
 
     def name(self):
         return f'full_level_td_cnn_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname, weights_only=True))
+        self.classifier.reset_parameters()
 
     def forward_features(self, x):
         B, L, I, H, W = x.shape
@@ -101,7 +110,7 @@ class FullLevelTDCNNModel(nn.Module):
         # y_sag_t1 = F.adaptive_avg_pool1d(y.transpose(-1, -2)[..., I_sag_t2:-I_ax_t2], 1).squeeze(-1)  # B*L, D
         # y_ax_t2 = F.adaptive_avg_pool1d(y.transpose(-1, -2)[..., -I_ax_t2:], 1).squeeze(-1)  # B*L, D
         # y = self.classifier(torch.concat([y_sag_t2, y_sag_t1, y_ax_t2], dim=1))  # B*L, n_classes
-        y = F.adaptive_avg_pool1d(y.transpose(-1,-2), 1).flatten(1)  # TODO: Make this pooling larger?
+        y = F.adaptive_max_pool1d(y.transpose(-1,-2), 1).flatten(1)  # TODO: Make this pooling larger?
         y = self.classifier(y)
         y = y.reshape(B, L, self.nclasses // 3, 3)  # Now B, Level, Condition, diagnosis
         y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels

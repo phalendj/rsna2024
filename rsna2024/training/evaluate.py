@@ -496,52 +496,56 @@ def generate_xy_values(cfg):
                         )
     with torch.no_grad():
         for x, t in tqdm(valid_dl):
-            if isinstance(x, dict):
-                x = {k: v.to(device) for k, v in x.items()}
-                with autocast:
-                    preds = [model(x) for model in all_models]
-            elif isinstance(x, tuple) or isinstance(x, list):
-                x1, x2, x3 = x
-                x1 = x1.to(device)
-                x2 = x2.to(device)
-                x3 = x3.to(device)
-                with autocast:
-                    preds = [model(x1, x2, x3) for model in all_models]
-            else:
-                x = x.to(device)
-                with autocast:
-                    preds = [model(x) for model in all_models]
-            study_ids = t['study_id'][:, 0].numpy()
-            series_ids = t['series_id'][:, 0].numpy()
-            offsets = t['offsets'].numpy()
-            scalings = t['scalings'].numpy()
-            for i in range(len(study_ids)):
-                study_id = study_ids[i]
-                series_id = series_ids[i]
-                scaling = scalings[i]
-                offset = offsets[i]
-                if study_id in df_clean_i.index:
-                    fold = df_clean_i.loc[study_id, 'fold']
-                    OUT = preds[fold]['masks'][i]
+            try:
+                if isinstance(x, dict):
+                    x = {k: v.to(device) for k, v in x.items()}
+                    with autocast:
+                        preds = [model(x) for model in all_models]
+                elif isinstance(x, tuple) or isinstance(x, list):
+                    x1, x2, x3 = x
+                    x1 = x1.to(device)
+                    x2 = x2.to(device)
+                    x3 = x3.to(device)
+                    with autocast:
+                        preds = [model(x1, x2, x3) for model in all_models]
                 else:
-                    OUT = torch.mean(torch.stack([pred['masks'][i] for pred in preds], dim=0), dim=0)
-                    min_values = OUT.flatten(1,2).min(dim=1)[0].view(OUT.shape[0],1,1)
-                    max_values = OUT.flatten(1,2).max(dim=1)[0].view(OUT.shape[0],1,1)
-                    OUT = (OUT - min_values)/(max_values - min_values)
+                    x = x.to(device)
+                    with autocast:
+                        preds = [model(x) for model in all_models]
+                study_ids = t['study_id'][:, 0].numpy()
+                series_ids = t['series_id'][:, 0].numpy()
+                offsets = t['offsets'].numpy()
+                scalings = t['scalings'].numpy()
+                for i in range(len(study_ids)):
+                    study_id = study_ids[i]
+                    series_id = series_ids[i]
+                    scaling = scalings[i]
+                    offset = offsets[i]
+                    if study_id in df_clean_i.index:
+                        fold = df_clean_i.loc[study_id, 'fold']
+                        OUT = preds[fold]['masks'][i]
+                    else:
+                        OUT = torch.mean(torch.stack([pred['masks'][i] for pred in preds], dim=0), dim=0)
+                        min_values = OUT.flatten(1,2).min(dim=1)[0].view(OUT.shape[0],1,1)
+                        max_values = OUT.flatten(1,2).max(dim=1)[0].view(OUT.shape[0],1,1)
+                        OUT = (OUT - min_values)/(max_values - min_values)
 
-                # cut = 0.1
-                # pts = detect_best_levels(OUT.float(), cut=cut)
-                # while len(pts) < 5:
-                #     cut /= 2
-                #     pts = detect_best_levels(OUT.float(), cut=cut)
-                # pts = pts/scaling - offset
-                # pts = np.array(sorted(pts, key=lambda x: x[-1]))
+                    # cut = 0.1
+                    # pts = detect_best_levels(OUT.float(), cut=cut)
+                    # while len(pts) < 5:
+                    #     cut /= 2
+                    #     pts = detect_best_levels(OUT.float(), cut=cut)
+                    # pts = pts/scaling - offset
+                    # pts = np.array(sorted(pts, key=lambda x: x[-1]))
 
-                pts = detect_single_levels(OUT)/scaling - offset
-                for k in range(5):
-                    X, Y = pts[k]
-                    lev = LEVELS[k]
-                    results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': np.nan, 'condition': 'Spinal Canal Stenosis', 'level': lev,  'x': X, 'y': Y})
+                    pts = detect_single_levels(OUT)/scaling - offset
+                    for k in range(5):
+                        X, Y = pts[k]
+                        lev = LEVELS[k]
+                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': np.nan, 'condition': 'Spinal Canal Stenosis', 'level': lev,  'x': X, 'y': Y})
+            except Exception as e:
+                logger.exception(e)
+                pass
 
     pred_center_df = pd.DataFrame(results)
     pred_center_df = pred_center_df.drop('instance_number', axis=1).merge(old_dfc[['study_id', 'series_id', 'condition', 'level', 'instance_number']], on=['study_id', 'series_id', 'condition', 'level'])[['study_id', 'series_id', 'instance_number', 'condition', 'level', 'x', 'y']]

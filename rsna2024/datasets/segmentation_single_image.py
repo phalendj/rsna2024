@@ -189,6 +189,7 @@ class SegmentationCenterDataset(Dataset):
             else:
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
                 data = np.zeros(final_size)
+                target['series_id'] = torch.tensor([-1])
                 target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
                 target['offsets'] = torch.zeros((2,), dtype=torch.float)
                 target['scalings'] = torch.ones((2,), dtype=torch.float)
