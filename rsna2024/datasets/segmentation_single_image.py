@@ -121,11 +121,11 @@ class SegmentationCenterDataset(Dataset):
         if full_targets:
             label = np.int64([study.labels[col] for col in self.label_columns])
             target['labels'] = torch.tensor(label)
-        
-        series = study.get_largest_series(self.series_description)
-        target['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
-        if series is not None:
-            try:
+        try:        
+            series = study.get_largest_series(self.series_description)
+            target['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
+            if series is not None:
+
                 instance_number = self.get_instance_number(series=series)
                 stack = series.get_largest_stack()
                 data, instance_numbers = stack.get_thick_slice(instance_number=instance_number, slice_thickness=self.channels)
@@ -185,7 +185,8 @@ class SegmentationCenterDataset(Dataset):
                 if self.mode == 'train':
                     data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
                     target['centers'] = centers
-            except Exception:
+
+            else:
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
                 data = np.zeros(final_size)
                 target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
@@ -193,8 +194,8 @@ class SegmentationCenterDataset(Dataset):
                 target['scalings'] = torch.ones((2,), dtype=torch.float)
                 if full_targets:
                     target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
-                    target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)    
-        else:
+                    target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
+        except Exception:
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             data = np.zeros(final_size)
             target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
@@ -202,8 +203,7 @@ class SegmentationCenterDataset(Dataset):
             target['scalings'] = torch.ones((2,), dtype=torch.float)
             if full_targets:
                 target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
-                target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
-                
+                target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)                    
 
         data = data.transpose(2, 0, 1)
 

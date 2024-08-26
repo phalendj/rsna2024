@@ -599,7 +599,7 @@ class OrientedStudy(object):
         for series in self.series_dict.values():
             if series_description == series.series_description:
                 stack = series.get_largest_stack()
-                if stack.number_of_instances > most_slices:
+                if stack is not None and stack.number_of_instances > most_slices:
                     most_slices = stack.number_of_instances
                     largest = series
         return largest
