@@ -159,8 +159,12 @@ class SegmentationCenterDataset(Dataset):
                     sc = np.random.uniform()*self.aug_size
                     S2 = int(round(S*(1-sc)))
                     dS = S-S2
-                    dh = np.random.randint(dS)
-                    dw = np.random.randint(dS)
+                    if dS > 0:
+                        dh = np.random.randint(dS)
+                        dw = np.random.randint(dS)
+                    else:
+                        dh = 0
+                        dw = 0
                     img = img[dh:dh+S2, dw:dw+S2]
                     offsets[0] -= dh
                     offsets[1] -= dw

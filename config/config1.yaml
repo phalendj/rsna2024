@@ -2,7 +2,7 @@ seed: 2222
 clean: True
 debug: false
 train: True
-result: evaluate  # evaluate, instance_numbers, sagittalcenters
+result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
 load_directory: #/home/phalendj/code/rsna2024/outputs/2024-08-19/09-45-43  # For reloads
 mode: valid
 
@@ -18,7 +18,7 @@ dataset:
   conditions:
   - Spinal Canal Stenosis
   channels: 30
-  aug_size: 0.1
+  aug_size: 0.20
   # center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75
@@ -37,17 +37,23 @@ loss:
   name: InstanceLevelCrossEntropy  
 model:
   name: tdcnninstance
-  model_name: densenet121
-  # model_name: tf_efficientnetv2_b2.in1k
+  # model_name: densenet121
+  model_name: tf_efficientnetv2_b2.in1k
   nclasses: 10
   num_layers: 4
   
 optimization:
   optimizer: AdamW
-  scheduler: CosineWithWarmup
   learning_rate: 0.0001
   weight_decay: 0.01
-  n_cycles: 0.475
+
+  # scheduler: CosineWithWarmup
+  # n_cycles: 0.475
+
+  scheduler: MultiStepLR
+  milestones: [3, 8, 13]
+  gamma: 0.1
+  
 training:
   use_folds:
   - 0
@@ -59,5 +65,5 @@ training:
   epochs: 15
   batch_size: 4
   grad_acc: 1
-  early_stopping: 3
+  early_stopping: 5
   workers: 12
