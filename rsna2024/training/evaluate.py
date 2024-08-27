@@ -280,7 +280,7 @@ def generate_instance_numbers(cfg):
                 with autocast:
                     preds = [model(x) for model in all_models]
 
-            if isinstance(x, tuple) or isinstance(x, list):
+            elif isinstance(x, tuple) or isinstance(x, list):
                 x1, x2, x3 = x
                 x1 = x1.to(device)
                 x2 = x2.to(device)
