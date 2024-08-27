@@ -72,8 +72,11 @@ class TDCNNModel(nn.Module):
         # y = torch.concatenate([F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1), F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)], dim=1)
         return y
 
-    def forward(self, x):
-        y = self.forward_features(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.forward_features(X)
         return {'labels': self.classifier(y)}
 
 
@@ -81,8 +84,11 @@ class TDCNNInstanceModel(TDCNNModel):
     def name(self):
         return f'td_cnn_instance_{self.model_name}'
     
-    def forward(self, x):
-        y = self.forward_encode(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.forward_encode(X)
         return {'instance_labels': self.classifier(y)}
 
 
@@ -122,8 +128,11 @@ class TDCNNLevelModel(TDCNNModel):
         for parameters in self.feature_model.parameters():
             parameters.requires_grad = True
 
-    def forward(self, x):
-        y = self.level_forward(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.level_forward(X)
         return {'labels': y}
     
 
@@ -164,8 +173,11 @@ class TDCNNLevelSideModel(TDCNNModel):
         for parameters in self.feature_model.parameters():
             parameters.requires_grad = True
 
-    def forward(self, x):
-        y = self.level_forward(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.level_forward(X)
         return {'labels': y}
 
 
@@ -247,6 +259,10 @@ class TDCNNUNetPreloadZoom(nn.Module):
         return x[:, (X-self.subsize):(X+self.subsize), (Y-self.subsize):(Y+self.subsize)]
 
     def forward(self,X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+
         # X is B, I, H, W, need to trim to middle channels for UNet
         i0 = (X.shape[1] - self.unet_in_channels) // 2
 
@@ -286,6 +302,10 @@ class DoubleTDCNNUNetPreloadZoom(nn.Module):
         return x[:, (X-self.subsize):(X+self.subsize), (Y-self.subsize):(Y+self.subsize)]
 
     def forward(self,X):
+
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
         # X is B, I, H, W, need to trim to middle channels for UNet
         i0 = (X.shape[1] - self.unet_in_channels) // 2
 
@@ -389,8 +409,11 @@ class TDCNNModel2(nn.Module):
         # y = torch.concatenate([F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1), F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)], dim=1)
         return y
 
-    def forward(self, x):
-        y = self.forward_features(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.forward_features(X)
         return {'labels': self.classifier(y)}
 
 
@@ -398,8 +421,11 @@ class TDCNNInstanceModel2(TDCNNModel2):
     def name(self):
         return f'td_cnn2_instance_{self.model_name}'
     
-    def forward(self, x):
-        y = self.forward_encode(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.forward_encode(X)
         return {'instance_labels': self.classifier(y)}
 
 
@@ -438,8 +464,11 @@ class TDCNNLevelModel2(TDCNNModel2):
         for parameters in self.feature_model.parameters():
             parameters.requires_grad = True
 
-    def forward(self, x):
-        y = self.level_forward(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.level_forward(X)
         return {'labels': y}
     
 
@@ -480,6 +509,9 @@ class TDCNNLevelSideModel2(TDCNNModel2):
         for parameters in self.feature_model.parameters():
             parameters.requires_grad = True
 
-    def forward(self, x):
-        y = self.level_forward(x)
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.level_forward(X)
         return {'labels': y}

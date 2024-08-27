@@ -119,6 +119,7 @@ def create_dataset(study_ids, mode, cfg):
                                            patch_size_ax=cfg.axial_subsize,
                                            d_ax=cfg.axial_span_mm,
                                            conditions=cfg.conditions,
+                                           aug_size=cfg.aug_size,
                                            generated_coordinate_file=cfg.center_file,
                                            mode=mode, 
                                            transform=transform)

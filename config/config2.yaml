@@ -15,7 +15,8 @@ dataset:
   name: FullLevelDataset
   image_size: [512, 512]
   # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
-  conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]
+  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]
+  # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]
   # conditions: [Spinal Canal Stenosis]
   sagittal_channels: 15
   sagittal_subsize: 112
@@ -23,7 +24,7 @@ dataset:
   axial_channels: 7
   axial_subsize: 224
   axial_span_mm: 80
-  aug_size: 0.1
+  aug_size: 0.2
   # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
   # center_file: /data/phalendj/kaggle/rsna2024/train_labels_sagittal_t1.csv
   center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
@@ -34,7 +35,7 @@ dataset:
     contrast: True  # Not much change
     blur: True   # This is a major adjustment that helps with training.
     distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good 
-    rotate: True  # This is a major adjustment that helps with training.
+    rotate: False  # This is a major adjustment that helps with training.
     crop:   # 0.9 Does not do much - Maybe crop more? 0.7 hurts
       use: False
       size: 512
@@ -52,12 +53,12 @@ loss:
   
 model:
   name: FullLevelTDCNN
-  model_name: tf_efficientnetv2_b2.in1k
+  # model_name: tf_efficientnetv2_b2.in1k
   # nclasses: 15
-  # model_name: densenet121
+  model_name: densenet121
   nclasses: 6
   num_layers: 4
-  use: axial_t2
+  use: sagittal_t1
   preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
 
 optimization:
@@ -69,7 +70,7 @@ optimization:
   # n_cycles: 0.475
 
   scheduler: MultiStepLR
-  milestones: [3, 6, 9]
+  milestones: [4, 8, 9]
   gamma: 0.1
 
 training:

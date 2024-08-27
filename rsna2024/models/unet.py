@@ -37,6 +37,9 @@ class UNet(nn.Module):
         return f'unet_{self.encoder_name}_{self.classifier.name()}'
 
     def forward(self,X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
         x = self.UNet(X)
 #       MinMaxScaling along the class plane to generate a heatmap
         min_values = x.view(-1,5,self.patch_size*self.patch_size).min(-1)[0].view(-1,self.out_classes,1,1) # Bug, I've been MinMaxScaling with the wrong values
@@ -82,6 +85,9 @@ class UNetPreload(nn.Module):
         return f'unet_{self.encoder_name}_{self.classifier.name()}'
 
     def forward(self,X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
         x = self.UNet(X)
 #       MinMaxScaling along the class plane to generate a heatmap
         min_values = x.view(-1,5,self.patch_size*self.patch_size).min(-1)[0].view(-1,self.out_classes,1,1) # Bug, I've been MinMaxScaling with the wrong values
@@ -115,6 +121,9 @@ class UNetPreloadZoom(nn.Module):
         return x[:, (X-self.subsize):(X+self.subsize), (Y-self.subsize):(Y+self.subsize)]
 
     def forward(self,X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
         y = self.UNet(X)
         masks = y['masks']
         B = X.shape[0]

@@ -166,7 +166,7 @@ class SegmentationCenterDataset(Dataset):
                     H = W = S2
 
                 img = cv2.resize(img, self.image_size, interpolation=cv2.INTER_LANCZOS4)
-                if len(data.shape) == 2:
+                if len(img.shape) == 2:
                     img = np.expand_dims(img, 2)
                 scalings[0] = self.image_size[0]/H
                 scalings[1] = self.image_size[1]/W
@@ -178,7 +178,13 @@ class SegmentationCenterDataset(Dataset):
                     series_mask = self.coordinate_df.series_id == series.series_id
                     used_instances = self.coordinate_df.loc[series_mask, 'instance_number'].unique()
                     slice_classification = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
-                    data['slice_classification'] = torch.as_tensor(slice_classification).long()
+                    target['slice_classification'] = torch.as_tensor(slice_classification).long()
+
+                    level_slice_classification = np.zeros((5, self.channels), dtype=int)
+                    for k, lev in enumerate(LEVELS):
+                        used_instances = self.coordinate_df.loc[series_mask & (self.coordinate_df.level == lev), 'instance_number'].unique()
+                        level_slice_classification[k] = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
+                    target['level_slice_classification'] = torch.as_tensor(level_slice_classification).long()
 
                     tmp = self.coordinate_df.loc[series_mask].set_index('level')
                     
@@ -187,7 +193,7 @@ class SegmentationCenterDataset(Dataset):
                     centers += offsets
                     centers *= scalings
                     centers = torch.tensor(centers, dtype=torch.float)
-                    data['centers'] = centers
+                    target['centers'] = centers
 
                 if self.transform is not None:
                     img = self.transform(image=img)['image']
@@ -197,8 +203,9 @@ class SegmentationCenterDataset(Dataset):
                     target['centers'] = centers
 
             else:
+                logger.error(f'No {self.series_description} series for {study.study_id}')
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
-                data = np.zeros(final_size)
+                img = np.zeros(final_size)
                 data['series_id'] = torch.tensor([-1])
                 data['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
                 data['offsets'] = torch.zeros((2,), dtype=torch.float)
@@ -206,9 +213,12 @@ class SegmentationCenterDataset(Dataset):
                 if full_targets:
                     target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
                     target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
-        except Exception:
+                    target['level_slice_classification'] = torch.zeros((5, self.channels), dtype=torch.long)
+        except Exception as e:
+            logger.exception(d)
+            logger.error(f'{study.study_id}')
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
-            data = np.zeros(final_size)
+            img = np.zeros(final_size)
             data['series_id'] = torch.tensor([-1])
             data['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
             data['offsets'] = torch.zeros((2,), dtype=torch.float)
@@ -216,6 +226,7 @@ class SegmentationCenterDataset(Dataset):
             if full_targets:
                 target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
                 target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)                    
+                target['level_slice_classification'] = torch.zeros((5, self.channels), dtype=torch.long)
 
         img = img.transpose(2, 0, 1)
 

@@ -27,7 +27,7 @@ class FullLevelDataset(Dataset):
     Idea here is that because it seems levels are somewhat correllated with their results, we would like to produce all of the information of a level in one shot
     """
 
-    def __init__(self, study_ids, channels_sag: int, patch_size_sag: int, d_sag: float, channels_ax: int, patch_size_ax: int, d_ax: float, conditions: list[str], generated_coordinate_file: str, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
+    def __init__(self, study_ids, channels_sag: int, patch_size_sag: int, d_sag: float, channels_ax: int, patch_size_ax: int, d_ax: float, conditions: list[str], generated_coordinate_file: str, aug_size: float, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
         self.study_ids = list(study_ids)
         self.patch_size_sag = int(patch_size_sag)
         self.channels_sag = int(channels_sag)
@@ -35,6 +35,7 @@ class FullLevelDataset(Dataset):
         self.patch_size_ax = int(patch_size_ax)
         self.channels_ax = int(channels_ax)
         self.d_ax = d_ax
+        self.aug_size = aug_size
         logger.info(f'Sagittal Output will have patch_size {self.patch_size_sag} and {self.channels_sag} channels spanning {d_sag} mm')
         logger.info(f'Axial Output will have patch_size {self.patch_size_ax} and {self.channels_ax} channels spanning {d_ax} mm')
         self.mode = mode
@@ -98,7 +99,7 @@ class FullLevelDataset(Dataset):
             inum = row.instance_number
             if self.mode == 'train':
                 pixel_spacing = stack.dicom_info['pixel_spacing'][0, 0]
-                gap = int(0.2*self.d_sag / pixel_spacing)
+                gap = int(self.aug_size*self.d_sag / pixel_spacing)
                 x0 += np.random.randint(-gap, gap+1)
                 y0 += np.random.randint(-gap, gap+1)
                 k = stack._get_instance_k(row.instance_number)
