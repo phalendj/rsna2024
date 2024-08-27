@@ -20,7 +20,9 @@ def test_dataset():
                                                                  transform=None
                                                             )
     
-    x, t = ds[0]
+    data, t = ds[0]
+    x = data['Sagittal T2/STIR Patch']
+
     assert x.shape == torch.Size([1, 512, 512])
     assert t['centers'].shape == torch.Size([5, 2])
     assert t['labels'].shape == torch.Size([5])
@@ -39,7 +41,10 @@ def test_dataset2():
                                                                  transform=None
                                                             )
     
-    x, t = ds[0]
+    data, t = ds[0]
+
+    x = data['Sagittal T2/STIR Patch']
+
     assert x.shape == torch.Size([3, 512, 512])
     assert t['centers'].shape == torch.Size([5, 2])
     assert t['labels'].shape == torch.Size([5])
@@ -58,7 +63,8 @@ def test_dataset3():
                                                                  transform=None
                                                             )
     
-    x, t = ds[0]
+    data, t = ds[0]
+    x = data['Sagittal T2/STIR Patch']
     
     assert x.shape == torch.Size([5, 512, 512])
     assert t['centers'].shape == torch.Size([5, 2])
@@ -81,8 +87,8 @@ def test_dataset4():
                                                                  transform=None
                                                             )
     
-    x, t = ds[0]
-    print(t)
+    data, t = ds[0]
+    x = data['Sagittal T2/STIR Patch']
     assert x.shape == torch.Size([5, 512, 512])
     assert t['centers'].shape == torch.Size([5, 2])
     assert t['slice_classification'].shape == torch.Size([5])
@@ -104,7 +110,9 @@ def test_dataloader():
     
     dl = DataLoader(ds, batch_size=3, shuffle=False, pin_memory=True, drop_last=True, num_workers=1)
     
-    x, t = next(iter(dl))
+    data, t = next(iter(dl))
+
+    x = data['Sagittal T2/STIR Patch']
 
     assert x.shape == torch.Size([3, 1, 512, 512])
     assert t['centers'].shape == torch.Size([3, 5, 2])

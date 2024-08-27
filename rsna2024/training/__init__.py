@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, MultiStepLR
 from transformers import get_cosine_schedule_with_warmup
 
 from hydra.core.hydra_config import HydraConfig
@@ -52,6 +52,11 @@ def create_optimizer(cfg, model, nbatches):
                                                     num_training_steps=num_total_steps,
                                                     num_cycles=opt_cfg.n_cycles)
         result['scheduler'] = scheduler
+        result['scheduler_onbatch'] = True
+    elif opt_cfg.scheduler == 'MultiStepLR':
+        scheduler = MultiStepLR(optimizer=optimizer, milestones=opt_cfg.milestones, gamma=opt_cfg.gamma)
+        result['scheduler'] = scheduler
+        result['scheduler_onbatch'] = False
 
     return result
 
@@ -238,8 +243,10 @@ def train_one_fold(model, cfg, fold: int):
                     scaler.step(optimizer)
                     scaler.update()
                     optimizer.zero_grad()
-                    if scheduler is not None:
-                        scheduler.step()                    
+                    if scheduler is not None and optimization_details['scheduler_onbatch']:
+                        scheduler.step()     
+        if scheduler is not None and not optimization_details['scheduler_onbatch']:
+            scheduler.step()                    
 
         train_loss = total_loss/len(train_dl)
         logger.info(f'train_loss:{train_loss:.6f}')

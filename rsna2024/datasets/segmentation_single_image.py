@@ -88,7 +88,7 @@ class SegmentationCenterDataset(Dataset):
 
         # Check all study ids are in loaded files
         
-        assert len(set(study_ids) & set(self.series_description_df.study_id.unique())) == len(study_ids)
+        assert len(set(study_ids) & set(self.series_description_df.study_id.unique())) == len(study_ids), f"for mode {self.mode}, clean = {rsnautils.CLEAN}, unable to find all {study_ids}"
 
         logger.info(f'Loading {len(study_ids)} Studies')
         self.studies = [dcmload.OrientedStudy(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
@@ -118,57 +118,67 @@ class SegmentationCenterDataset(Dataset):
 
         full_targets = self.mode == 'train' or self.mode == 'valid'
         target = {'study_id': torch.tensor([study.study_id])}
+        data = {'study_id': torch.tensor([study.study_id])}
         if full_targets:
             label = np.int64([study.labels[col] for col in self.label_columns])
             target['labels'] = torch.tensor(label)
         try:        
             series = study.get_largest_series(self.series_description)
-            target['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
+            data['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
             if series is not None:
 
                 instance_number = self.get_instance_number(series=series)
                 stack = series.get_largest_stack()
-                data, instance_numbers = stack.get_thick_slice(instance_number=instance_number, slice_thickness=self.channels)
-                target['instance_numbers'] = torch.as_tensor(instance_numbers, dtype=torch.long)
+                img, instance_numbers = stack.get_thick_slice(instance_number=instance_number, slice_thickness=self.channels)
+                data['instance_numbers'] = torch.as_tensor(instance_numbers, dtype=torch.long)
                 offsets = np.zeros(2)
                 scalings = np.ones(2)
 
-                data = data.transpose(1, 2, 0)
-                H, W, D = data.shape
-                if H > W:
-                    diff = H-W
-                    if self.mode == 'train':
-                        offset = np.random.randint(diff)
-                    else:
-                        offset = int(diff//2)
-                    data = data[offset:offset+W]
-                    offsets[0] = -offset
-                    H = W
-                elif W > H:
-                    diff = W-H
-                    if self.mode == 'train':
-                        offset = np.random.randint(diff)
-                    else:
-                        offset = int(diff//2)
+                img = img.transpose(1, 2, 0)
+                H, W, D = img.shape
+                # For training, we do some shrinking or growing as is necessary to get a full image
+                # In this case, we will put the image in the center of a larger patch with zero padding
+                diff = H-W
+                S = max(H,W)
+                new_img = np.zeros((S,S,D), dtype=np.uint8)
+                if diff > 0:  #Height is greater than width
+                    d = diff // 2
+                    new_img[:, d:d+W, :] = img
+                    offsets[1] = d
+                else:
+                    d = -diff//2
+                    new_img[d:d+H, :, :] = img
+                    offsets[0] = d
 
-                    data = data[:, offset:offset+H]
-                    offsets[1] = -offset
-                    W = H
+                img = new_img
+                H = W = S
 
-                data = cv2.resize(data, self.image_size, interpolation=cv2.INTER_LANCZOS4)
+                if self.mode == 'train':
+                    # Do a random crop augmentation
+                    sc = np.random.uniform()*self.aug_size
+                    S2 = int(round(S*(1-sc)))
+                    dS = S-S2
+                    dh = np.random.randint(dS)
+                    dw = np.random.randint(dS)
+                    img = img[dh:dh+S2, dw:dw+S2]
+                    offsets[0] -= dh
+                    offsets[1] -= dw
+                    H = W = S2
+
+                img = cv2.resize(img, self.image_size, interpolation=cv2.INTER_LANCZOS4)
                 if len(data.shape) == 2:
-                    data = np.expand_dims(data, 2)
+                    img = np.expand_dims(img, 2)
                 scalings[0] = self.image_size[0]/H
                 scalings[1] = self.image_size[1]/W
 
-                target['offsets'] = torch.tensor(offsets)
-                target['scalings'] = torch.tensor(scalings)
+                data['offsets'] = torch.tensor(offsets)
+                data['scalings'] = torch.tensor(scalings)
 
                 if full_targets:
                     series_mask = self.coordinate_df.series_id == series.series_id
                     used_instances = self.coordinate_df.loc[series_mask, 'instance_number'].unique()
                     slice_classification = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
-                    target['slice_classification'] = torch.as_tensor(slice_classification).long()
+                    data['slice_classification'] = torch.as_tensor(slice_classification).long()
 
                     tmp = self.coordinate_df.loc[series_mask].set_index('level')
                     
@@ -177,38 +187,41 @@ class SegmentationCenterDataset(Dataset):
                     centers += offsets
                     centers *= scalings
                     centers = torch.tensor(centers, dtype=torch.float)
-                    target['centers'] = centers
+                    data['centers'] = centers
 
                 if self.transform is not None:
-                    data = self.transform(image=data)['image']
+                    img = self.transform(image=img)['image']
 
                 if self.mode == 'train':
-                    data, centers = augment_image_and_centers(image=data, centers=centers, alpha=self.aug_size)
+                    img, centers = augment_image_and_centers(image=img, centers=centers, alpha=self.aug_size)
                     target['centers'] = centers
 
             else:
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
                 data = np.zeros(final_size)
-                target['series_id'] = torch.tensor([-1])
-                target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
-                target['offsets'] = torch.zeros((2,), dtype=torch.float)
-                target['scalings'] = torch.ones((2,), dtype=torch.float)
+                data['series_id'] = torch.tensor([-1])
+                data['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
+                data['offsets'] = torch.zeros((2,), dtype=torch.float)
+                data['scalings'] = torch.ones((2,), dtype=torch.float)
                 if full_targets:
                     target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
                     target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
         except Exception:
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             data = np.zeros(final_size)
-            target['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
-            target['offsets'] = torch.zeros((2,), dtype=torch.float)
-            target['scalings'] = torch.ones((2,), dtype=torch.float)
+            data['series_id'] = torch.tensor([-1])
+            data['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
+            data['offsets'] = torch.zeros((2,), dtype=torch.float)
+            data['scalings'] = torch.ones((2,), dtype=torch.float)
             if full_targets:
                 target['centers'] = torch.ones((5,2), dtype=torch.float) * -1.e4    
                 target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)                    
 
-        data = data.transpose(2, 0, 1)
+        img = img.transpose(2, 0, 1)
 
-        return torch.tensor(data, dtype=torch.float) / 255.0, target
+        data[f'{self.series_description} Patch'] = torch.tensor(img, dtype=torch.float) / 255.0
+
+        return data, target
 
     def __len__(self):
         return len(self.study_ids)

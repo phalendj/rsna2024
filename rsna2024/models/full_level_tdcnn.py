@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class FullLevelTDCNNModel(nn.Module):
-    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4):
+    def __init__(self, model_name: str, img_size: tuple[int, int], use: str, in_c: int = 1, n_classes: int = 3, num_layers: int = 4):
         super().__init__()
+        self.use = use
         self.feature_model = timm.create_model(
                                     model_name,
                                     pretrained=rsnautils.PRELOAD, 
@@ -33,9 +34,18 @@ class FullLevelTDCNNModel(nn.Module):
         asize = 1
 
         self.d_model = Y.shape[1] * asize**2
-        logger.info(f'Feature dimension for tdcnn {self.d_model}')
         
-        self.pool = nn.AdaptiveMaxPool2d(output_size=asize)
+        
+        self.pooling_type = 'avg'  # at the moment, avg trains much better
+
+        if self.pooling_type == 'max':
+            self.pool = nn.AdaptiveMaxPool2d(output_size=asize)
+        elif self.pooling_type == 'avg':
+            self.pool = nn.AdaptiveAvgPool2d(output_size=asize)
+        elif self.pooling_type == 'catavgmax':
+            raise NotImplementedError
+
+        logger.info(f'Feature dimension for tdcnn {self.d_model}')
         self.pos_encoding = PositionalEncoding(num_hiddens=self.d_model, dropout=0.0)
         layer = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=8, batch_first=True)
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
@@ -97,9 +107,21 @@ class FullLevelTDCNNModel(nn.Module):
         # Add src mask as extra part of the vector?
         # Add instance label prediction as part of feature vector?
 
-        y = torch.concat([sagittal_t2_features, sagittal_t1_features, axial_t2_features], dim=2)  # B, L, I1 + I2 +I3, D
-        # mask = torch.concat([sagittal_t2_mask, sagittal_t1_mask, axial_t2_mask], dim=2)    # B, L, I1 + I2 +I3
-        # y = sagittal_t2_features
+        if self.use == 'sagittal_t2':
+            y = sagittal_t2_features
+            mask = sagittal_t2_mask
+        elif self.use == 'sagittal_t1':
+            y = sagittal_t1_features
+            mask = sagittal_t1_mask
+        elif self.use == 'axial_t2':
+            y = axial_t2_features
+            mask = axial_t2_mask
+        elif self.use == 'all':
+            y = torch.concat([sagittal_t2_features, sagittal_t1_features, axial_t2_features], dim=2)  # B, L, I1 + I2 +I3, D
+            mask = torch.concat([sagittal_t2_mask, sagittal_t1_mask, axial_t2_mask], dim=2)    # B, L, I1 + I2 +I3
+        else:
+            raise NotImplementedError
+
         B, L, I, D = y.shape
         assert D == self.d_model
         y = y.flatten(0, 1)
@@ -110,7 +132,12 @@ class FullLevelTDCNNModel(nn.Module):
         # y_sag_t1 = F.adaptive_avg_pool1d(y.transpose(-1, -2)[..., I_sag_t2:-I_ax_t2], 1).squeeze(-1)  # B*L, D
         # y_ax_t2 = F.adaptive_avg_pool1d(y.transpose(-1, -2)[..., -I_ax_t2:], 1).squeeze(-1)  # B*L, D
         # y = self.classifier(torch.concat([y_sag_t2, y_sag_t1, y_ax_t2], dim=1))  # B*L, n_classes
-        y = F.adaptive_max_pool1d(y.transpose(-1,-2), 1).flatten(1)  # TODO: Make this pooling larger?
+        if self.pooling_type == 'max':
+            y = F.adaptive_max_pool1d(y.transpose(-1,-2), 1).flatten(1)  # TODO: Make this pooling larger?
+        elif self.pooling_type == 'avg':
+            y = F.adaptive_avg_pool1d(y.transpose(-1,-2), 1).flatten(1)  # TODO: Make this pooling larger?
+        else:
+            raise NotImplementedError
         y = self.classifier(y)
         y = y.reshape(B, L, self.nclasses // 3, 3)  # Now B, Level, Condition, diagnosis
         y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels

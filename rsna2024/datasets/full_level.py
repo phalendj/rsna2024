@@ -27,14 +27,16 @@ class FullLevelDataset(Dataset):
     Idea here is that because it seems levels are somewhat correllated with their results, we would like to produce all of the information of a level in one shot
     """
 
-    def __init__(self, study_ids, channels_sag: int, patch_size_sag: int, channels_ax: int, patch_size_ax: int, conditions: list[str], generated_coordinate_file: str, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
+    def __init__(self, study_ids, channels_sag: int, patch_size_sag: int, d_sag: float, channels_ax: int, patch_size_ax: int, d_ax: float, conditions: list[str], generated_coordinate_file: str, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
         self.study_ids = list(study_ids)
         self.patch_size_sag = int(patch_size_sag)
         self.channels_sag = int(channels_sag)
+        self.d_sag = d_sag
         self.patch_size_ax = int(patch_size_ax)
         self.channels_ax = int(channels_ax)
-        logger.info(f'Sagittal Output will have patch_size {self.patch_size_sag} and {self.channels_sag} channels')
-        logger.info(f'Axial Output will have patch_size {self.patch_size_ax} and {self.channels_ax} channels')
+        self.d_ax = d_ax
+        logger.info(f'Sagittal Output will have patch_size {self.patch_size_sag} and {self.channels_sag} channels spanning {d_sag} mm')
+        logger.info(f'Axial Output will have patch_size {self.patch_size_ax} and {self.channels_ax} channels spanning {d_ax} mm')
         self.mode = mode
         self.transform = transform
         if self.mode == 'train' or self.mode == 'valid':
@@ -58,6 +60,9 @@ class FullLevelDataset(Dataset):
         self.series_description = 'Sagittal T2/STIR'  # Use this because it is the center
         self.condition = 'Spinal Canal Stenosis'
             
+        self.center_patch = True
+        self.center_slice = True
+
         self.pred_center_df = pd.read_csv(generated_coordinate_file)  # Should be a file just like any other coordinate file
 
     @property
@@ -68,14 +73,17 @@ class FullLevelDataset(Dataset):
         patch1 = np.zeros((self.channels_sag, self.patch_size_sag, self.patch_size_sag), dtype=np.uint8)
         instance_numbers1 = np.ones((self.channels_sag,), dtype=int)*-1
         offset1 = 0, 0
+        scaling1 = np.array([1,1], dtype=float)
 
         patch2 = np.zeros((self.channels_sag, self.patch_size_sag, self.patch_size_sag), dtype=np.uint8)
         instance_numbers2 = np.ones((self.channels_sag,), dtype=int)*-1
         offset2 = 0, 0
+        scaling2 = np.array([1,1], dtype=float)
 
         patch3 = np.zeros((self.channels_ax, self.patch_size_ax, self.patch_size_ax), dtype=np.uint8)
         instance_numbers3 = np.ones((self.channels_ax,), dtype=int)*-1
         offset3 = 0, 0
+        scaling3 = np.array([1,1], dtype=float)
 
         series_ids = np.zeros((3,), dtype=int)
         try:
@@ -86,12 +94,11 @@ class FullLevelDataset(Dataset):
             ## TODO: Add?
             x0=int(round(row.x)) 
             y0=int(round(row.y))
-            # if self.series_description == 'Axial T2':
-            #     x0, y0 = y0, x0
-
+            
             inum = row.instance_number
             if self.mode == 'train':
-                gap = int(self.patch_size_sag // 10)
+                pixel_spacing = stack.dicom_info['pixel_spacing'][0, 0]
+                gap = int(0.2*self.d_sag / pixel_spacing)
                 x0 += np.random.randint(-gap, gap+1)
                 y0 += np.random.randint(-gap, gap+1)
                 k = stack._get_instance_k(row.instance_number)
@@ -99,7 +106,7 @@ class FullLevelDataset(Dataset):
                 inum = stack.instance_numbers[k]
 
             world_x, world_y, world_z = stack.get_world_coordinates(instance_number=inum, x=x0, y=y0)
-            patch1, instance_numbers1, offset1 = stack.get_thick_patch(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag)
+            patch1, instance_numbers1, offset1, scaling1 = stack.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag, d_mm=self.d_sag, center=self.center_slice, center_patch=self.center_patch)
             sd = 'Sagittal T1'
             res = None
             bdist = 1.e10
@@ -112,7 +119,7 @@ class FullLevelDataset(Dataset):
                         series_ids[1] = series.series_id
             if res is not None:
                 inum, x, y = res.get_instance_xy_from_world(world_x, world_y, world_z)
-                patch2, instance_numbers2, offset2 = res.get_thick_patch(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, patch_size=self.patch_size_sag)
+                patch2, instance_numbers2, offset2, scaling2 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, patch_size=self.patch_size_sag, d_mm=self.d_sag, center=self.center_slice, center_patch=self.center_patch)
             
             sd = 'Axial T2'
             res = None
@@ -126,8 +133,9 @@ class FullLevelDataset(Dataset):
                         series_ids[2] = series.series_id
             if res is not None:
                 inum, x, y = res.get_instance_xy_from_world(world_x, world_y, world_z)
-                ## TODO: DO WE FLIP X,Y?
-                patch3, instance_numbers3, offset3 = res.get_thick_patch(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax)            
+                ## TODO: DO WE FLIP X,Y -> YES?
+                x, y = y, x
+                patch3, instance_numbers3, offset3, scaling3 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax, d_mm=self.d_ax, center=self.center_slice, center_patch=self.center_patch)
         except KeyError:
             # logger.error(f'Key Error on {row}')
             pass
@@ -139,9 +147,9 @@ class FullLevelDataset(Dataset):
             logger.exception(e)
             pass
 
-        return {'Sagittal T2/STIR Patch': patch1, 'Sagittal T2/STIR Instance Numbers': instance_numbers1, 'Sagittal T2/STIR Offsets': np.array(offset1),
-                'Sagittal T1 Patch': patch2, 'Sagittal T1 Instance Numbers': instance_numbers2, 'Sagittal T1 Offsets': np.array(offset2),
-                'Axial T2 Patch': patch3, 'Axial T2 Instance Numbers': instance_numbers3, 'Axial T2 Offsets': np.array(offset3), 'series_ids': series_ids}
+        return {'Sagittal T2/STIR Patch': patch1, 'Sagittal T2/STIR Instance Numbers': instance_numbers1, 'Sagittal T2/STIR Offsets': np.array(offset1), 'Sagittal T2/STIR Scalings': scaling1,
+                'Sagittal T1 Patch': patch2, 'Sagittal T1 Instance Numbers': instance_numbers2, 'Sagittal T1 Offsets': np.array(offset2), 'Sagittal T1 Scalings': scaling2,
+                'Axial T2 Patch': patch3, 'Axial T2 Instance Numbers': instance_numbers3, 'Axial T2 Offsets': np.array(offset3), 'Axial T2 Scalings': scaling3, 'series_ids': series_ids}
 
     def __getitem__(self, idx):
         """

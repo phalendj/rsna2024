@@ -55,10 +55,10 @@ def create_model(cfg, fold):
         return conv3d.ResNet3D18(cfg.nclasses)
     elif cfg.name == 'FullLevelTDCNN':
         if cfg.preload is not None:
-            model = full_level_tdcnn.FullLevelTDCNNModel(model_name=cfg.model_name, n_classes=cfg.nclasses, img_size=(512, 512), num_layers=cfg.num_layers)
+            model = full_level_tdcnn.FullLevelTDCNNModel(model_name=cfg.model_name, n_classes=cfg.nclasses, img_size=(512, 512), use=cfg.use, num_layers=cfg.num_layers)
             model.load(cfg.preload, fold=fold)
             return model
         else:
-            return full_level_tdcnn.FullLevelTDCNNModel(model_name=cfg.model_name, n_classes=cfg.nclasses, img_size=(512, 512), num_layers=cfg.num_layers)
+            return full_level_tdcnn.FullLevelTDCNNModel(model_name=cfg.model_name, n_classes=cfg.nclasses, img_size=(512, 512), use=cfg.use, num_layers=cfg.num_layers)
     else:
         raise NotImplementedError
