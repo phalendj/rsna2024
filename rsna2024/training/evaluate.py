@@ -292,7 +292,7 @@ def generate_instance_numbers(cfg):
                 with autocast:
                     preds = [model(x) for model in all_models]
             study_ids = t['study_id'][:, 0].numpy()
-            series_ids = t['series_id'][:, 0].numpy()
+            series_ids = x['series_id'][:, 0].cpu().numpy()
             tmp = []
             for i, study_id in enumerate(study_ids):
                 if study_id in df_clean_i.index:
@@ -306,7 +306,7 @@ def generate_instance_numbers(cfg):
             class_pred = torch.stack(tmp, dim=0)
             loc = (class_pred*w).sum(dim=1)/class_pred.sum(dim=1)
             ind = torch.round(loc.float()).long()
-            instance_numbers = [t['instance_numbers'][i, j].item() for i, j in enumerate(ind)]
+            instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind)]
 
             for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
                 for lev in LEVELS:
@@ -513,9 +513,9 @@ def generate_xy_values(cfg):
                     with autocast:
                         preds = [model(x) for model in all_models]
                 study_ids = t['study_id'][:, 0].numpy()
-                series_ids = t['series_id'][:, 0].numpy()
-                offsets = t['offsets'].numpy()
-                scalings = t['scalings'].numpy()
+                series_ids = x['series_id'][:, 0].cpu().numpy()
+                offsets = x['offsets'].cpu().numpy()
+                scalings = x['scalings'].cpu().numpy()
                 for i in range(len(study_ids)):
                     study_id = study_ids[i]
                     series_id = series_ids[i]
@@ -564,6 +564,7 @@ def generate_xy_values(cfg):
 
     res = []
     for study in tqdm(valid_ds.studies):
+        study.load()
         tmp = pred_center_df[pred_center_df.study_id == study.study_id]
         for row in tmp.itertuples():
             try:
@@ -576,6 +577,7 @@ def generate_xy_values(cfg):
                 print(f'LinAlg Error on {study}')
             except KeyError:
                 print(f'KeyError on {study}, {study.series_dict}')
+        study.unload()
 
     temp_filler = pd.concat(res)
     full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)

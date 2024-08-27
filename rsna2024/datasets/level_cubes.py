@@ -64,6 +64,7 @@ class LevelCubeDataset(Dataset):
         final_size = 5, self.patch_size, self.patch_size, int(self.channels)
         x = np.zeros(final_size, dtype=np.uint8)
         study = self.studies[idx]
+        study.load()
         full_targets = self.mode == 'train' or self.mode == 'valid'
         target = {'study_id': torch.tensor([study.study_id])}
         if full_targets:
@@ -135,7 +136,8 @@ class LevelCubeDataset(Dataset):
             x = self.transform(image=x)['image'].reshape(self.patch_size, self.patch_size, self.channels, -1).transpose(3, 0, 1, 2)
     
         x = x.transpose(0, 3, 1, 2)
-
+        if self.mode == 'test':
+            study.unload()
         return torch.tensor(x, dtype=torch.float) / 255.0, target
 
     def __len__(self):
@@ -207,6 +209,7 @@ class AllLevelCubeDataset(LevelCubeDataset):
         """
         
         study = self.studies[idx]
+        study.load()
         full_targets = self.mode == 'train' or self.mode == 'valid'
         target = {'study_id': torch.tensor([study.study_id])}
         if full_targets:
@@ -251,6 +254,9 @@ class AllLevelCubeDataset(LevelCubeDataset):
             axial_t2_x = axial_t2_x.transpose(2, 3, 1, 0).reshape(self.axial_t2_patch_size, self.axial_t2_patch_size, -1)
             axial_t2_x = self.transform(image=axial_t2_x)['image'].reshape(self.axial_t2_patch_size, self.axial_t2_patch_size, self.axial_t2_channels, -1).transpose(3, 2, 0, 1)
     
+        if self.mode == 'test':
+            study.unload()
+
         return (torch.tensor(sagittal_t2_x, dtype=torch.float) / 255.0, torch.tensor(sagittal_t1_x, dtype=torch.float) / 255.0, torch.tensor(axial_t2_x, dtype=torch.float) / 255.0), target
 
     def __len__(self):
@@ -398,132 +404,3 @@ class AllLevelCubeLeftRightDataset(Dataset):
         return len(self.left_dataset)
 
 
-### TODO: If needed, use the above and add a resize to the cubes extracted
-# class LevelCubeCropZoomDataset(Dataset):
-#     def __init__(self, study_ids, channels: int, image_size: tuple[int, int], slice_size: int, series_description, conditions, mode='train', transform=None, load_studies=None):
-#         self.study_ids = list(study_ids)
-#         self.slice_size = int(slice_size)
-#         self.image_size = int(image_size[0]), int(image_size[1])
-#         self.channels = channels
-#         logger.info(f'Output will have size {2*self.slice_size} resized to {image_size} and {channels} channels')
-#         self.mode = mode
-#         self.transform = transform
-#         if self.mode == 'train' or self.mode == 'valid':
-#             self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=rsnautils.relative_directory, clean=CLEAN)
-#         else:
-#             self.labels_df = None
-#             self.coordinate_df = None
-#             self.series_description_df = load_test_files(relative_directory=rsnautils.relative_directory)
-
-#         if load_studies is None:
-#             logger.info(f'Loading {len(study_ids)} Studies')
-#             self.studies = [Study(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
-#             logger.info(f'Done')
-#         else:
-#             logger.info(f'Referencing pre-loaded studies')
-#             self.studies = load_studies
-#             assert len(self.study_ids) == len(self.studies)
-
-
-#         self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
-#         self.series_description = series_description
-
-#         if self.mode == 'train' or self.mode == 'valid':
-#             series2cond = {'Sagittal T2/STIR': 'spinal',  'Sagittal T1': 'foraminal', 'Axial T2': 'subarticular'}
-#             self.available_diagnosis = [c for c in self.label_columns if series2cond[self.series_description] in c]
-            
-
-#     @property
-#     def labels(self):
-#         return self.label_columns
-
-#     def __getitem__(self, idx):
-#         """
-#         Will output a tensor of size LEVELS, CHANNELS, 2*SLICE_SIZE, SLICE_SIZE
-#         """
-#         final_size = 5, self.image_size[0], self.image_size[1], int(self.channels)
-#         x = np.zeros(final_size, dtype=np.uint8)
-#         study = self.studies[idx]
-#         if self.mode == 'train' or self.mode == 'valid':
-#             label = np.int64([study.labels[col] for col in self.label_columns])
-#         else:
-#             label = np.int64([-100 for col in self.label_columns])
-
-#         available = [s[2] for s in study.series if s[1] == self.series_description]
-#         if len(available) > 0:
-#             if self.mode == 'train':
-#                 series = np.random.choice(available)
-#             else:
-#                 series = available[0]
-            
-#             data = series.data
-#             data = data.transpose(1, 2, 0)
-#             H, W, D = data.shape
-
-#             for k in range(5):
-#                 xr = []
-#                 yr = []
-#                 zr = []
-#                 k2 = k
-#                 while k2 < len(self.available_diagnosis):
-
-#                     nm = self.available_diagnosis[k2]
-#                     if nm in series.diagnosis_coordinates:
-#                         y0, x0, z0 = series.diagnosis_coordinates[nm]
-#                         xr.append(x0)
-#                         yr.append(y0)
-#                         zr.append(z0)
-#                     k2 += 5
-
-#                 if len(xr) > 0:
-#                     x0 = np.mean(xr)
-#                     y0 = np.mean(yr)
-#                     z0 = np.mean(zr)
-#                     x0 = min(max(int(x0) - self.slice_size, 0), H - 2*self.slice_size)
-#                     y0 = min(max(int(y0) - self.slice_size, 0), W - 2*self.slice_size)
-#                     x1 = min(H, x0 + 2*self.slice_size)
-#                     y1 = min(W, y0 + 2*self.slice_size)
-
-#                     i0 = max(int(z0 - self.channels/ 2), 0)
-#                     i1 = min(i0 + self.channels, D)
-#                     # Axial images can have smaller pixel sizes, and when doing levels we really want the entire image
-#                     if self.series_description == 'Axial T2' and (2*self.slice_size > H or 2*self.slice_size > W):
-#                         data2 = data[..., i0:i1].copy()
-#                         if H > W:
-#                             diff = H-W
-#                             if self.mode == 'train':
-#                                 offset = np.random.randint(diff)
-#                             else:
-#                                 offset = int(diff//2)
-#                             data2 = data2[offset:offset+W]
-#                             H = W
-#                         elif W > H:
-#                             diff = W-H
-#                             if self.mode == 'train':
-#                                 offset = np.random.randint(diff)
-#                             else:
-#                                 offset = int(diff//2)
-
-#                             data2 = data2[:, offset:offset+H]
-#                             W = H
-#                         data2 = cv2.resize(data2, self.image_size, interpolation=cv2.INTER_LANCZOS4)
-#                         x[k, ..., :(i1-i0)] = data2
-                        
-#                     else:
-#                         x[k, :, :, :(i1-i0)] = cv2.resize(data[x0:x1, y0:y1, i0:i1], self.image_size, interpolation=cv2.INTER_LANCZOS4)
-                    
-#             if self.transform is not None:
-#                 # Need to reshape it around
-#                 x = x.transpose(1, 2, 3, 0).reshape(*self.image_size, -1)
-#                 x = self.transform(image=x)['image'].reshape(*self.image_size, self.channels, -1).transpose(3, 0, 1, 2)
-        
-#         x = x.transpose(0, 3, 1, 2)
-
-#         target = {}
-#         target['labels'] = torch.tensor(label)
-#         target['study_id'] = torch.tensor([study.study_id])
-
-#         return torch.tensor(x, dtype=torch.float) / 255.0, target
-
-#     def __len__(self):
-#         return len(self.study_ids)

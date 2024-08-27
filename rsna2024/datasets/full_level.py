@@ -157,6 +157,7 @@ class FullLevelDataset(Dataset):
         Will output a tensor of size LEVELS, CHANNELS, PATCH_SIZE, PATCH_SIZE
         """
         study = self.studies[idx]
+        study.load()
         full_targets = self.mode == 'train' or self.mode == 'valid'
         target = {'study_id': torch.tensor([study.study_id])}
         data = {'study_id': np.array([study.study_id])}
@@ -251,6 +252,9 @@ class FullLevelDataset(Dataset):
                 data[key] = torch.tensor(x, dtype=torch.float) / 255.0
             else:
                 data[key] = torch.tensor(x).long()
+
+        if self.mode == 'test':
+            study.unload()
 
         return data, target
 

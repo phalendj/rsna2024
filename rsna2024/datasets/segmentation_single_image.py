@@ -115,6 +115,7 @@ class SegmentationCenterDataset(Dataset):
     def __getitem__(self, idx):
         
         study = self.studies[idx]
+        study.load()
 
         full_targets = self.mode == 'train' or self.mode == 'valid'
         target = {'study_id': torch.tensor([study.study_id])}
@@ -231,6 +232,9 @@ class SegmentationCenterDataset(Dataset):
         img = img.transpose(2, 0, 1)
 
         data[f'{self.series_description} Patch'] = torch.tensor(img, dtype=torch.float) / 255.0
+
+        if self.mode == 'test':
+            study.unload()
 
         return data, target
 

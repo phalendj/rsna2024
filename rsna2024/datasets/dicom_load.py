@@ -458,7 +458,6 @@ class OrientedSeries(object):
         self.series_id = int(self.series_id)
         
         self.series_description = series_description
-        self.load()
 
     def get_plane(self):
         return self.series_description.split()[0].lower()
@@ -494,6 +493,7 @@ class OrientedSeries(object):
 
             
     def get_stack(self, instance_number: int) -> np.array:
+        self.load()
         for stack in self.dicom_stacks:
             if stack.has_instance(instance_number):
                 return stack
@@ -506,15 +506,18 @@ class OrientedSeries(object):
         If `center` is false, it will take the most data possible.  If true, it will only pad either side so that the specified instance is centered
         If `boundary_instance` is specified, it will include only instances containing the specified instance up to the boundary instance, and pad after that.  Better if we are going for left or right foraminal.
         """
+        self.load()
         return self.get_stack(instance_number).get_thick_slice(instance_number=instance_number, slice_thickness=slice_thickness, boundary_instance=boundary_instance, center=center)
     
     def get_thick_patch(self, instance_number, slice_thickness, x, y, patch_size, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> np.array:
+        self.load()
         return self.get_stack(instance_number).get_thick_patch(instance_number=instance_number, slice_thickness=slice_thickness, x=x, y=y, patch_size=patch_size, boundary_instance=boundary_instance, center=center, center_patch=center_patch)
     
     def find_closest_stack(self, world_x: float, world_y: float, world_z: float, required_in: bool) -> tuple[OrientedStack|None, float]:
         """
         Given world coordinates, will find the instance number that has the coordinates closest to the center of the image.  Also will return the distance in case we are comparing different series
         """
+        self.load()
         best_distance = 1.e10
         best_stack = None
         for stack in self.dicom_stacks:
@@ -534,6 +537,7 @@ class OrientedSeries(object):
         """
         Best used for initial segmentation, will return series with the largest continuous data
         """
+        self.load()
         largest = None
         most_slices = 0
         for series_id, ssd, series in self.series:
@@ -547,6 +551,7 @@ class OrientedSeries(object):
 
     def get_largest_stack(self):
         """Will find the largest stack"""
+        self.load()
         largest = None
         most_slices = 0
         for stack in self.dicom_stacks:
@@ -579,6 +584,15 @@ class OrientedStudy(object):
                     del self.labels[c]
                     
         self.set_coordinate_df(coordinate_df)
+
+
+    def load(self):
+        for __, series in self.series_dict.items():
+            series.load()
+
+    def unload(self):
+        for __, series in self.series_dict.items():
+            series.unload()
 
     def set_coordinate_df(self, coordinate_df):
         if coordinate_df is not None:
