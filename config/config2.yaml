@@ -1,9 +1,9 @@
 seed: 2222
 clean: False
 debug: False
-train: True
+train: False
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
-load_directory: #/home/phalendj/code/rsna2024/outputs/2024-08-20/09-45-43  # For reloads
+load_directory: \/home/phalendj/code/rsna2024/outputs/2024-08-24/11-44-51  # For reloads
 mode: valid
 
 directories:
@@ -15,15 +15,17 @@ dataset:
   name: FullLevelDataset
   image_size: [512, 512]
   # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
-  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]
+  # conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]
   # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]
-  # conditions: [Spinal Canal Stenosis]
-  sagittal_channels: 15
+  conditions: [Spinal Canal Stenosis]
+  sagittal_channels: 23  # 99th percentile distance for foraminal is 48mm, with this spacing we will get 66 mm span around center instance which should cover it.
   sagittal_subsize: 112
   sagittal_span_mm: 50
-  axial_channels: 7
+  sagittal_slice_dx: 3
+  axial_channels: 11  # median distance for vertebrae is 26-32mm depending on vertebrae, with this spacing we will get 15 mm span around center instance
   axial_subsize: 224
-  axial_span_mm: 80
+  axial_span_mm: 60
+  axial_slice_dx: 3
   aug_size: 0.2
   # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
   # center_file: /data/phalendj/kaggle/rsna2024/train_labels_sagittal_t1.csv
@@ -34,7 +36,7 @@ dataset:
     hflip: False   # Very hurtful usually - cannot segment properly and everything comes in standard locations
     contrast: True  # Not much change
     blur: True   # This is a major adjustment that helps with training.
-    distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good 
+    distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good, especially for axial
     rotate: False  # This is a major adjustment that helps with training.
     crop:   # 0.9 Does not do much - Maybe crop more? 0.7 hurts
       use: False
@@ -56,9 +58,9 @@ model:
   # model_name: tf_efficientnetv2_b2.in1k
   # nclasses: 15
   model_name: densenet121
-  nclasses: 6
+  nclasses: 3
   num_layers: 4
-  use: sagittal_t1
+  use: sagittal_t2
   preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
 
 optimization:
@@ -70,7 +72,7 @@ optimization:
   # n_cycles: 0.475
 
   scheduler: MultiStepLR
-  milestones: [4, 8, 9]
+  milestones: [1, 6]
   gamma: 0.1
 
 training:
@@ -78,8 +80,8 @@ training:
   # use_folds: [2]
   use_amp: True
   epochs: 15
-  batch_size: 8
+  batch_size: 6
   grad_acc: 1
-  early_stopping: 15
+  early_stopping: 5
   workers: 12
 

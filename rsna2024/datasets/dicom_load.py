@@ -418,15 +418,31 @@ class OrientedStack:
         return patch, instance_numbers, (x0-i0, y0-j0)
 
 
-    def get_thick_volume(self, instance_number: int, slice_thickness: int, x: int, y: int, patch_size: int, d_mm: float, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> tuple[np.array, np.array, tuple[int, int]]:
+    def get_thick_volume(self, instance_number: int, slice_thickness: int, x: int, y: int, patch_size: int, d_mm: float, dx_slice_mm: float, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> tuple[np.array, np.array, tuple[int, int]]:
         pixel_spacing = self.dicom_info['pixel_spacing'][0]
+        positions = self.dicom_info['positions']
+        instance_distances = {self.instance_numbers[i]: np.sqrt(np.dot(x-positions[0],x-positions[0])) for i, x in enumerate(positions)}
         dx, dy = np.array([d_mm, d_mm])/pixel_spacing
         assert abs(dx - dy) < 1
         sub_patch_size = int(round(dx))
-        sub_patch, instance_numbers, offsets = self.get_thick_patch(instance_number=instance_number, slice_thickness=slice_thickness, x=x, y=y, patch_size=sub_patch_size, boundary_instance=boundary_instance, center=center, center_patch=center_patch)
+        sub_patch, instance_numbers, offsets = self.get_thick_patch(instance_number=instance_number, slice_thickness=30, x=x, y=y, patch_size=sub_patch_size, boundary_instance=boundary_instance, center=False, center_patch=center_patch)
         data = cv2.resize(sub_patch.transpose(1,2,0), (patch_size, patch_size), interpolation=cv2.INTER_LANCZOS4).transpose(2,0,1)
         scalings = np.array([sub_patch_size/patch_size, sub_patch_size/patch_size], dtype=float)
-        return data, instance_numbers, offsets, scalings
+
+        # Now make new data and put the appropriate slices in it, using the nearest to the desired distance
+        final_data = np.zeros((slice_thickness, patch_size, patch_size), dtype=np.uint8)
+        final_instances = np.ones((slice_thickness,), dtype=int)*-1
+        tgt = np.array([i*dx_slice_mm for i in range(slice_thickness)], dtype=float)
+        tgt += instance_distances[instance_number] - tgt[slice_thickness//2]
+
+        instance_dist_list = [(v, k) for k, v in instance_distances.items()]
+        for i, v in enumerate(tgt):
+            ii = sorted(instance_dist_list, key=lambda x: abs(x[0]-v))[0][1]
+            jj = np.argwhere(instance_numbers == ii)[0][0]
+            final_data[i] = data[jj]
+            final_instances[i] = instance_numbers[jj]
+
+        return final_data, final_instances, offsets, scalings
             
     def plot_instance(self, instance_number: int, pts: list[tuple[float, float, str]]|None):
         

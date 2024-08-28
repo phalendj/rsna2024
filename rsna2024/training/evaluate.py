@@ -298,19 +298,37 @@ def generate_instance_numbers(cfg):
                 if study_id in df_clean_i.index:
                     fold = df_clean_i.loc[study_id, 'fold']
                     pred = preds[fold]
-                    class_pred = pred['instance_labels'].softmax(dim=2)[i, :, 1].cpu()
+                    v = pred['instance_labels']
+                    if v.shape[-1] == 10:
+                        v = v.reshape(len(study_ids), -1, 5, 2)
+                    class_pred = v.softmax(dim=-1)[i, ..., 1].cpu()
+                    if len(class_pred.shape) == 2:
+                        class_pred = class_pred.transpose(-1,-2)
                 else:
-                    class_pred = torch.mean(torch.stack([pred['instance_labels'].softmax(dim=2)[i, :, 1].cpu() for pred in preds], dim=0), dim=0)
+                    v = preds[0]['instance_labels']
+                    if v.shape[-1] == 10:
+                        class_pred = torch.mean(torch.stack([pred['instance_labels'].reshape(len(study_ids), -1, 5, 2).softmax(dim=-1)[i, ..., 1].cpu() for pred in preds], dim=0), dim=0).transpose(-1,-2)
+                    else:
+                        class_pred = torch.mean(torch.stack([pred['instance_labels'].softmax(dim=-1)[i, ..., 1].cpu() for pred in preds], dim=0), dim=0)
                 tmp.append(class_pred)
 
             class_pred = torch.stack(tmp, dim=0)
-            loc = (class_pred*w).sum(dim=1)/class_pred.sum(dim=1)
+            #print(class_pred.shape)
+            loc = (class_pred*w).sum(dim=-1)/class_pred.sum(dim=-1)
             ind = torch.round(loc.float()).long()
-            instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind)]
 
-            for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
-                for lev in LEVELS:
-                    results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
+            if len(ind.shape) == 1:
+                instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind)]
+
+                for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
+                    for lev in LEVELS:
+                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
+            else:
+                for k, lev in enumerate(LEVELS):
+                    instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind[:, k])]
+
+                    for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
+                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
 
     pred_center_df = pd.DataFrame(results)
     fname = model_directory / 'predicted_label_coordinates.csv'

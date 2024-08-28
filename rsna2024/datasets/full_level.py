@@ -27,14 +27,17 @@ class FullLevelDataset(Dataset):
     Idea here is that because it seems levels are somewhat correllated with their results, we would like to produce all of the information of a level in one shot
     """
 
-    def __init__(self, study_ids, channels_sag: int, patch_size_sag: int, d_sag: float, channels_ax: int, patch_size_ax: int, d_ax: float, conditions: list[str], generated_coordinate_file: str, aug_size: float, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
+    def __init__(self, study_ids, channels_sag: int, patch_size_sag: int, d_sag: float, d_slice_sag: float, channels_ax: int, patch_size_ax: int, d_ax: float, d_slice_ax:float, 
+                 conditions: list[str], generated_coordinate_file: str, aug_size: float, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
         self.study_ids = list(study_ids)
         self.patch_size_sag = int(patch_size_sag)
         self.channels_sag = int(channels_sag)
         self.d_sag = d_sag
+        self.d_slice_sag = d_slice_sag
         self.patch_size_ax = int(patch_size_ax)
         self.channels_ax = int(channels_ax)
         self.d_ax = d_ax
+        self.d_slice_ax = d_slice_ax
         self.aug_size = aug_size
         logger.info(f'Sagittal Output will have patch_size {self.patch_size_sag} and {self.channels_sag} channels spanning {d_sag} mm')
         logger.info(f'Axial Output will have patch_size {self.patch_size_ax} and {self.channels_ax} channels spanning {d_ax} mm')
@@ -107,7 +110,10 @@ class FullLevelDataset(Dataset):
                 inum = stack.instance_numbers[k]
 
             world_x, world_y, world_z = stack.get_world_coordinates(instance_number=inum, x=x0, y=y0)
-            patch1, instance_numbers1, offset1, scaling1 = stack.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag, d_mm=self.d_sag, center=self.center_slice, center_patch=self.center_patch)
+            patch1, instance_numbers1, offset1, scaling1 = stack.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag, 
+                                                                                  d_mm=self.d_sag, 
+                                                                                  dx_slice_mm=self.d_slice_sag,
+                                                                                  center=self.center_slice, center_patch=self.center_patch)
             sd = 'Sagittal T1'
             res = None
             bdist = 1.e10
@@ -120,7 +126,10 @@ class FullLevelDataset(Dataset):
                         series_ids[1] = series.series_id
             if res is not None:
                 inum, x, y = res.get_instance_xy_from_world(world_x, world_y, world_z)
-                patch2, instance_numbers2, offset2, scaling2 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, patch_size=self.patch_size_sag, d_mm=self.d_sag, center=self.center_slice, center_patch=self.center_patch)
+                patch2, instance_numbers2, offset2, scaling2 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, 
+                                                                                    patch_size=self.patch_size_sag, 
+                                                                                    d_mm=self.d_sag, dx_slice_mm=self.d_slice_sag,
+                                                                                    center=self.center_slice, center_patch=self.center_patch)
             
             sd = 'Axial T2'
             res = None
@@ -136,7 +145,9 @@ class FullLevelDataset(Dataset):
                 inum, x, y = res.get_instance_xy_from_world(world_x, world_y, world_z)
                 ## TODO: DO WE FLIP X,Y -> YES?
                 x, y = y, x
-                patch3, instance_numbers3, offset3, scaling3 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax, d_mm=self.d_ax, center=self.center_slice, center_patch=self.center_patch)
+                patch3, instance_numbers3, offset3, scaling3 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax, 
+                                                                                    d_mm=self.d_ax, dx_slice_mm=self.d_slice_ax,
+                                                                                    center=self.center_slice, center_patch=self.center_patch)
         except KeyError:
             # logger.error(f'Key Error on {row}')
             pass
