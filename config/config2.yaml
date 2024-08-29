@@ -37,7 +37,7 @@ dataset:
     contrast: True  # Not much change
     blur: True   # This is a major adjustment that helps with training.
     distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good, especially for axial
-    rotate: False  # This is a major adjustment that helps with training.
+    rotate: True  # This is a major adjustment that helps with training.
     crop:   # 0.9 Does not do much - Maybe crop more? 0.7 hurts
       use: False
       size: 512

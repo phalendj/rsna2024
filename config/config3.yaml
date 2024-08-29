@@ -1,5 +1,5 @@
 seed: 2222
-clean: True
+clean: 2
 debug: false
 train: True
 result: sagittalcenters  # evaluate, instance_numbers, sagittalcenters
@@ -65,7 +65,7 @@ training:
   - 3
   - 4
   use_amp: true
-  epochs: 35
+  epochs: 30  # After this, training loss no longer improves with augs
   batch_size: 24
   grad_acc: 1
   early_stopping: 5

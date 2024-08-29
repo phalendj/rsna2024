@@ -1,4 +1,5 @@
 import albumentations as A
+import cv2
 
 
 
@@ -12,7 +13,7 @@ def get_transform(train, cfg):
             use.append(A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), p=cfg.prob))
         if cfg.blur:
             use.append(A.OneOf([
-                                A.MotionBlur(blur_limit=5),
+                                A.MotionBlur(blur_limit=5, p=1),
                                 A.MedianBlur(blur_limit=5),
                                 # A.GaussianBlur(blur_limit=(1, 5)),
                                 A.GaussianBlur(blur_limit=5),
@@ -20,12 +21,12 @@ def get_transform(train, cfg):
                             ], p=cfg.prob))
         if cfg.distort:
             use.append(A.OneOf([
-                                A.OpticalDistortion(distort_limit=1.0),
-                                A.GridDistortion(num_steps=5, distort_limit=1.),
-                                A.ElasticTransform(alpha=3),
+                                A.OpticalDistortion(distort_limit=0.05, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0),
+                                A.GridDistortion(num_steps=5, distort_limit=(-0.3, 0.3), border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, normalized=True),
+                                A.ElasticTransform(alpha=3, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0),
                             ], p=cfg.prob))
         if cfg.rotate:
-            use.append(A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=0, p=cfg.prob))
+            use.append(A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, p=cfg.prob))
         if cfg.normalize:
             use.append(A.Normalize(mean=0.5, std=0.5))
         if cfg.crop.use:
