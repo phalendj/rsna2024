@@ -1,5 +1,5 @@
 seed: 2222
-clean: True
+clean: 2
 debug: false
 train: True
 result: instance_numbers  # evaluate, instance_numbers, sagittalcenters

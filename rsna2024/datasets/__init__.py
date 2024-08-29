@@ -127,7 +127,7 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
     """Loads and returns tuple of train files (train_stratums, label_coordinates, series_descriptions)"""
     df = pd.read_csv(f'{relative_directory}/train_stratums.csv')
 
-    df = df.fillna(-100)
+    df = df.fillna(-100)  # special signal to crossentropy loss to say do not count
     df = df.replace(LABEL2ID)
     
     dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates.csv')
@@ -136,14 +136,17 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
     if clean:
         # Drop cervical spine image
         # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/514891
+        logger.info('Drop cervical spine image')
         dfd = dfd[dfd.series_id != 3892989905]
         dfc = dfc[dfc.series_id != 3892989905]
         
         if clean > 1:
             # # Only take data where all of what we need is present in a single series
+            logger.info('Cleaning to all spinal on one series')
             df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Spinal', number=5)
 
         if clean > 2:
+            logger.info('Cleaning to all foraminal on one series')
             df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Foraminal', number=10)
 
         if clean > 3:
@@ -162,12 +165,21 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
         # if clean > 2:  # Not necessary after fixes
         #     # remove coordinates that are way off:
         #     dfc = clean_coordinates(dfc)
-
+        
         if clean > 4:
-            df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
+            logger.info('Cleaning to mismatched sagittal')
+            df, dfc, dfd = clean_mismatch_sagittal_vertebrae(relative_directory=relative_directory, df=df, dfc=dfc, dfd=dfd, limit=30)
 
         if clean > 5:
-            df, dfc, dfd = clean_mismatch_sagittal_vertebrae(relative_directory=relative_directory, df=df, dfc=dfc, dfd=dfd, limit=30)
+            logger.info('Cleaning to best study ids')
+            clean_ids = pd.read_csv(f'{relative_directory}/train_clean_study_ids.csv')
+            df = df[df.study_id.isin(clean_ids.study_id)]
+            dfd = dfd[dfd.study_id.isin(clean_ids.study_id)]
+            dfc = dfc[dfc.study_id.isin(clean_ids.study_id)]
+
+        if clean > 100:
+            logger.info('Cleaning to all subarticular on one series')
+            df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
     return df, dfc, dfd
 
 

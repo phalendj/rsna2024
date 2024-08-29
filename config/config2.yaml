@@ -1,5 +1,5 @@
 seed: 2222
-clean: False
+clean: 6
 debug: False
 train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
@@ -15,9 +15,9 @@ dataset:
   name: FullLevelDataset
   image_size: [512, 512]
   # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
-  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]
-  # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]
-  # conditions: [Spinal Canal Stenosis]
+  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]  # Use Clean level 6
+  # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]  # Need clean level 6
+  # conditions: [Spinal Canal Stenosis]  # Need clean level 6
   sagittal_channels: 23  # 99th percentile distance for foraminal is 48mm, with this spacing we will get 66 mm span around center instance which should cover it.
   sagittal_subsize: 112
   sagittal_span_mm: 50
@@ -58,7 +58,7 @@ model:
   # model_name: tf_efficientnetv2_b2.in1k
   # nclasses: 15
   model_name: densenet121
-  nclasses: 6
+  nclasses: 6  # 6 with L/R, 3 for spinal
   num_layers: 4
   use: sagittal_t1
   preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
