@@ -37,8 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 def evaluate(model, cfg):
-    rsnautils.CLEAN = False
-    df, __, __ = load_train_files(relative_directory=rsnautils.relative_directory, clean=rsnautils.CLEAN)
+    df, __, __ = load_train_files(relative_directory=rsnautils.relative_directory, clean=cfg.clean)
     # load sample submission file
     device = 'cuda:0'
 
@@ -98,6 +97,10 @@ def evaluate(model, cfg):
                             model_predictions.append(row)
                             
     new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
+    pcol = ['normal_mild', 'moderate', 'severe']
+    totals = new_pred[pcol].sum(axis=1)
+    for c in pcol:
+        new_pred[c] /= totals
     fname = output_directory / 'oof.csv'
     new_pred.to_csv(fname, index=False)
     
@@ -219,7 +222,10 @@ def predict(cfg):
                             model_predictions.append(row)
                         
     new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
-    
+    pcol = ['normal_mild', 'moderate', 'severe']
+    totals = new_pred[pcol].sum(axis=1)
+    for c in pcol:
+        new_pred[c] /= totals
     fname = model_directory / 'submission.csv'
     if mode == 'test':
         fname = 'submission.csv'

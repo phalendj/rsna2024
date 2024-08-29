@@ -333,7 +333,7 @@ class DoubleTDCNNUNetPreloadZoom(nn.Module):
 
 class PositionalEncoding(nn.Module): 
     """Positional encoding."""
-    def __init__(self, num_hiddens, dropout=0.0, max_len=50):
+    def __init__(self, num_hiddens, dropout=0.0, max_len=70):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         # Create a long enough P
