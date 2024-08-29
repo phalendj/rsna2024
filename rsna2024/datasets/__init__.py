@@ -139,27 +139,27 @@ def load_train_files(relative_directory: str, clean: bool = True) -> tuple[pd.Da
         dfd = dfd[dfd.series_id != 3892989905]
         dfc = dfc[dfc.series_id != 3892989905]
         
-        # remove mislabeled instances
-        # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/521341#2931853
-        bad_series_ids = set()
-        for level in LEVELS:
-            ldfc = dfc[(dfc.condition == 'Left Neural Foraminal Narrowing') & (dfc.level == level)]
-            rdfc = dfc[(dfc.condition == 'Right Neural Foraminal Narrowing') & (dfc.level == level)]
-            tmp = rdfc.merge(ldfc, how='inner', on=['study_id', 'series_id', 'instance_number'])
-            bad_series_ids |= set(tmp.series_id.unique())
+        # # remove mislabeled instances
+        # # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/521341#2931853
+        # bad_series_ids = set()
+        # for level in LEVELS:
+        #     ldfc = dfc[(dfc.condition == 'Left Neural Foraminal Narrowing') & (dfc.level == level)]
+        #     rdfc = dfc[(dfc.condition == 'Right Neural Foraminal Narrowing') & (dfc.level == level)]
+        #     tmp = rdfc.merge(ldfc, how='inner', on=['study_id', 'series_id', 'instance_number'])
+        #     bad_series_ids |= set(tmp.series_id.unique())
 
-        dfd = dfd[~dfd.series_id.isin(bad_series_ids)]
-        dfc = dfc[~dfc.series_id.isin(bad_series_ids)]
+        # dfd = dfd[~dfd.series_id.isin(bad_series_ids)]
+        # dfc = dfc[~dfc.series_id.isin(bad_series_ids)]
 
-        # remove coordinates that are way off:
-        dfc = clean_coordinates(dfc)
+        # # remove coordinates that are way off:
+        # dfc = clean_coordinates(dfc)
 
-        # Only take data where all of what we need is present in a single series
-        df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Spinal', number=5)
-        df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Foraminal', number=10)
-        df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
+        # # Only take data where all of what we need is present in a single series
+        # df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Spinal', number=5)
+        # df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Foraminal', number=10)
+        # df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)
 
-        df, dfc, dfd = clean_mismatch_sagittal_vertebrae(relative_directory=relative_directory, df=df, dfc=dfc, dfd=dfd, limit=30)
+        # df, dfc, dfd = clean_mismatch_sagittal_vertebrae(relative_directory=relative_directory, df=df, dfc=dfc, dfd=dfd, limit=30)
     return df, dfc, dfd
 
 

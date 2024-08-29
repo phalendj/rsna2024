@@ -3,6 +3,7 @@ import numpy as np
 import random
 import math
 import pandas as pd
+import copy
 
 
 import cv2
@@ -83,7 +84,7 @@ class SegmentationCenterDataset(Dataset):
         else:
             self.labels_df = None
             self.coordinate_df = None
-            logger.info(f'In Test Mode for {study_ids}')
+            logger.info(f'In {self.mode} Mode for {study_ids}')
             self.series_description_df = load_test_files(relative_directory=rsnautils.relative_directory)
 
         # Check all study ids are in loaded files
@@ -240,7 +241,7 @@ class SegmentationCenterDataset(Dataset):
         if self.mode == 'test':
             study.unload()
 
-        return data, target
+        return copy.deepcopy(data), copy.deepcopy(target)
 
     def __len__(self):
         return len(self.study_ids)

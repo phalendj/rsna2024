@@ -31,8 +31,8 @@ def run(cfg: DictConfig) -> None:
             model = models.create_model(cfg=cfg.model, fold=fold)
             training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
-    model = models.create_model(cfg=cfg.model, fold=0)
     if cfg.result == 'evaluate':
+        model = models.create_model(cfg=cfg.model, fold=0)
         evaluation.evaluate(model, cfg=cfg)
     elif cfg.result == 'instance_numbers':
         evaluation.generate_instance_numbers(cfg)

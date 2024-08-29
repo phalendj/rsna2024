@@ -98,6 +98,8 @@ def evaluate(model, cfg):
                             model_predictions.append(row)
                             
     new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
+    fname = output_directory / 'oof.csv'
+    new_pred.to_csv(fname, index=False)
     
     tmp = df.set_index('study_id').stack().reset_index(name='sample_weight').rename(columns={'level_1': 'location'})
     tmp = tmp[~tmp.location.map(lambda s: 'stratum' in s or 'fold' in s)]

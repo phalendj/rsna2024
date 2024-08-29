@@ -1,9 +1,9 @@
 seed: 2222
 clean: False
 debug: False
-train: False
+train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
-load_directory: \/home/phalendj/code/rsna2024/outputs/2024-08-24/11-44-51  # For reloads
+load_directory: # /home/phalendj/code/rsna2024/outputs/2024-08-28/11-44-51  # For reloads
 mode: valid
 
 directories:
@@ -15,9 +15,9 @@ dataset:
   name: FullLevelDataset
   image_size: [512, 512]
   # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
-  # conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]
+  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]
   # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]
-  conditions: [Spinal Canal Stenosis]
+  # conditions: [Spinal Canal Stenosis]
   sagittal_channels: 23  # 99th percentile distance for foraminal is 48mm, with this spacing we will get 66 mm span around center instance which should cover it.
   sagittal_subsize: 112
   sagittal_span_mm: 50
@@ -58,9 +58,9 @@ model:
   # model_name: tf_efficientnetv2_b2.in1k
   # nclasses: 15
   model_name: densenet121
-  nclasses: 3
+  nclasses: 6
   num_layers: 4
-  use: sagittal_t2
+  use: sagittal_t1
   preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
 
 optimization:
@@ -72,7 +72,7 @@ optimization:
   # n_cycles: 0.475
 
   scheduler: MultiStepLR
-  milestones: [1, 6]
+  milestones: [5, 10]
   gamma: 0.1
 
 training:
