@@ -4,6 +4,8 @@ import math
 from pathlib import Path
 from collections import OrderedDict
 import pandas as pd
+import numpy as np
+import random
 
 import torch
 from torch.utils.data import DataLoader
@@ -61,79 +63,17 @@ def create_optimizer(cfg, model, nbatches):
     return result
 
 
-    logger.info('Generate instance numbers file')
-    model_directory = Path(HydraConfig.get().runtime.output_dir)
-    df, dfc, dfd = load_train_files(relative_directory, clean=False)
-    if cfg.clean:
-        rsnautils.set_clean(False)
-        df_clean, __, __ = load_train_files(relative_directory, clean=True)
-        df_clean_i = df_clean.set_index('study_id')
-    else:
-        df_clean_i = df.set_index('study_id')
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
-    device = 'cuda:0'
 
-    all_models = []
-    for fold in range(5):
-        model = models.create_model(cfg.model, fold=fold)
-        fname = model_directory / (model.name() + f'_fold{fold}.pth')
-        logger.info(f'Loading model from {fname}')
-        model.load_state_dict(torch.load(fname))
-        __ = model.eval()
-        all_models.append(model.to(device))
-
-    results = []
-    autocast = torch.autocast('cuda', enabled=cfg.training.use_amp, dtype=torch.half) # you can use with T4 gpu. or newer
-    w = torch.arange(30)
-    for fold in cfg.training.use_folds:
-        logger.info(f'Fold {fold}')
-        df_valid = df.loc[df.fold == fold]
-        valid_ds = dsfactory.create_dataset(study_ids=df_valid.study_id.unique(), mode='valid', cfg=cfg.dataset)
-        valid_dl = DataLoader(valid_ds,
-                            batch_size=cfg.training.batch_size,
-                            shuffle=False,
-                            pin_memory=True,
-                            drop_last=False,
-                            num_workers=cfg.training.workers)
-        
-        with torch.no_grad():
-            for x, t in tqdm(valid_dl):
-                if isinstance(x, tuple) or isinstance(x, list):
-                    x1, x2, x3 = x
-                    x1 = x1.to(device)
-                    x2 = x2.to(device)
-                    x3 = x3.to(device)
-                    with autocast:
-                        preds = [model(x1, x2, x3) for model in all_models]
-                else:
-                    x = x.to(device)
-                    with autocast:
-                        preds = [model(x) for model in all_models]
-                study_ids = t['study_id'][:, 0].numpy()
-                series_ids = t['series_id'][:, 0].numpy()
-                tmp = []
-                for i, study_id in enumerate(study_ids):
-                    if study_id in df_clean_i.index:
-                        fold = df_clean_i.loc[study_id, 'fold']
-                        pred = preds[fold]
-                        class_pred = pred['instance_labels'].softmax(dim=2)[i, :, 1].cpu()
-                    else:
-                        class_pred = torch.mean(torch.stack([pred['instance_labels'].softmax(dim=2)[i, :, 1].cpu() for pred in preds], dim=0), dim=0)
-                    tmp.append(class_pred)
-
-                class_pred = torch.stack(tmp, dim=0)
-                loc = (class_pred*w).sum(dim=1)/class_pred.sum(dim=1)
-                ind = torch.round(loc.float()).long()
-                instance_numbers = [t['instance_numbers'][i, j].item() for i, j in enumerate(ind)]
-
-                for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
-                    for lev in LEVELS:
-                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
-    pred_center_df = pd.DataFrame(results)
-    pred_center_df.to_csv(model_directory / 'predicted_label_coordinates.csv', index=False)
-    
 def train_one_fold(model, cfg, fold: int):
     df, __, __ = load_train_files(relative_directory=relative_directory, clean=rsnautils.CLEAN)
+
+    g = torch.Generator()
+    g.manual_seed(fold)
 
     val_losses = []
     train_losses = []
@@ -153,7 +93,9 @@ def train_one_fold(model, cfg, fold: int):
                             shuffle=True,
                             pin_memory=True,
                             drop_last=True,
-                            num_workers=cfg.training.workers
+                            num_workers=cfg.training.workers,
+                            worker_init_fn=seed_worker,
+                            generator=g,
                             )
     
     valid_dl = DataLoader(
@@ -162,7 +104,9 @@ def train_one_fold(model, cfg, fold: int):
                             shuffle=False,
                             pin_memory=True,
                             drop_last=False,
-                            num_workers=cfg.training.workers
+                            num_workers=cfg.training.workers,
+                            worker_init_fn=seed_worker,
+                            generator=g,
                             )
 
     criterion = lffactory.create_loss(cfg=cfg.loss, device=device)

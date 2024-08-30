@@ -30,7 +30,7 @@ def set_random_seed(seed: int = 2222, deterministic: bool = False):
     os.environ["PYTHONHASHSEED"] = str(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)  # type: ignore
-    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = not deterministic
     torch.backends.cudnn.deterministic = deterministic  # type: ignore
 
 

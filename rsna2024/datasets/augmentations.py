@@ -13,17 +13,21 @@ def get_transform(train, cfg):
             use.append(A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), p=cfg.prob))
         if cfg.blur:
             use.append(A.OneOf([
-                                A.MotionBlur(blur_limit=5, p=1),
-                                A.MedianBlur(blur_limit=5),
-                                # A.GaussianBlur(blur_limit=(1, 5)),
-                                A.GaussianBlur(blur_limit=5),
-                                A.GaussNoise(var_limit=(5.0, 30.0)),
+                                A.MotionBlur(blur_limit=cfg.blur_limit, p=1),
+                                A.MedianBlur(blur_limit=cfg.blur_limit, p=1),
+                                A.GaussianBlur(blur_limit=cfg.blur_limit, p=1),
                             ], p=cfg.prob))
+        if cfg.noise:
+            use.append(A.OneOf([A.GaussNoise(var_limit=(5.0, 100.0), per_channel=True, p=1),
+                                ],p=cfg.prob))
+        if cfg.downscale:
+            use.append(A.OneOf([A.Downscale(scale_min=0.5, scale_max=0.9, interpolation_pair={"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_LINEAR}, p=1),
+                                ],p=cfg.prob))
         if cfg.distort:
             use.append(A.OneOf([
-                                A.OpticalDistortion(distort_limit=0.05, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0),
-                                A.GridDistortion(num_steps=5, distort_limit=(-0.3, 0.3), border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, normalized=True),
-                                A.ElasticTransform(alpha=3, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0),
+                                A.OpticalDistortion(distort_limit=0.05, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, p=1),
+                                A.GridDistortion(num_steps=5, distort_limit=(-0.3, 0.3), border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, normalized=True, p=1),
+                                A.ElasticTransform(alpha=3, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, p=1),
                             ], p=cfg.prob))
         if cfg.rotate:
             use.append(A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_LINEAR, value=0, p=cfg.prob))

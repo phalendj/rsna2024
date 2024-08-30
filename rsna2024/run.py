@@ -21,7 +21,7 @@ def run(cfg: DictConfig) -> None:
     logging.info(f'Configuration: {cfg}')
     set_clean(cfg.clean)
     set_debug(cfg.debug)
-    set_random_seed(cfg.seed)
+    set_random_seed(cfg.seed, deterministic=True)
     set_directories(cfg.directories)
     set_preload(cfg.mode.lower() != 'test')
     # torch.set_float32_matmul_precision('high')

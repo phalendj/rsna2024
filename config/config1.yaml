@@ -26,6 +26,9 @@ dataset:
     hflip: false
     contrast: true
     blur: true
+    blur_limit: 9
+    noise: True
+    downscale: True
     distort: true
     rotate: False
     crop:

@@ -106,7 +106,7 @@ class FullLevelDataset(Dataset):
                 x0 += np.random.randint(-gap, gap+1)
                 y0 += np.random.randint(-gap, gap+1)
                 k = stack._get_instance_k(row.instance_number)
-                k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
+                #k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
                 inum = stack.instance_numbers[k]
 
             world_x, world_y, world_z = stack.get_world_coordinates(instance_number=inum, x=x0, y=y0)

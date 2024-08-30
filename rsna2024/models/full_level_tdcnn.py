@@ -119,6 +119,9 @@ class FullLevelTDCNNModel(nn.Module):
         elif self.use == 'all':
             y = torch.concat([sagittal_t2_features, sagittal_t1_features, axial_t2_features], dim=2)  # B, L, I1 + I2 +I3, D
             mask = torch.concat([sagittal_t2_mask, sagittal_t1_mask, axial_t2_mask], dim=2)    # B, L, I1 + I2 +I3
+        elif self.use == 'sagittal':
+            y = torch.concat([sagittal_t2_features, sagittal_t1_features], dim=2)  # B, L, I1 + I2, D
+            mask = torch.concat([sagittal_t2_mask, sagittal_t1_mask], dim=2)    # B, L, I1 + I2
         else:
             raise NotImplementedError
 
