@@ -133,6 +133,9 @@ def evaluate(model, cfg):
     submission = submission.sort_values(by='row_id')
     submission = submission[submission.row_id.isin(tmp_true.row_id)].reset_index(drop=True)
     tmp_true = tmp_true[tmp_true.row_id.isin(submission.row_id)].reset_index(drop=True)
+
+    logger.info(f'Scoring for {len(submission)} submission vs {len(tmp_true)} true')
+
     scr = officialloss.score(solution=tmp_true.copy(), submission=submission.copy(), row_id_column_name='row_id', any_severe_scalar=1.0)
     logger.info(f'Official CV score: {scr}')
 

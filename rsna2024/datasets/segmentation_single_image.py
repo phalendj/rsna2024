@@ -116,7 +116,6 @@ class SegmentationCenterDataset(Dataset):
     def __getitem__(self, idx):
         
         study = self.studies[idx]
-        study.load()
 
         full_targets = self.mode == 'train' or self.mode == 'valid'
         target = {'study_id': torch.tensor([study.study_id])}
@@ -124,7 +123,8 @@ class SegmentationCenterDataset(Dataset):
         if full_targets:
             label = np.int64([study.labels[col] for col in self.label_columns])
             target['labels'] = torch.tensor(label)
-        try:        
+        try:       
+            study.load() 
             series = study.get_largest_series(self.series_description)
             data['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
             if series is not None:

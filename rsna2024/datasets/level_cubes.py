@@ -404,3 +404,197 @@ class AllLevelCubeLeftRightDataset(Dataset):
         return len(self.left_dataset)
 
 
+class LevelCubeAreaDataset(Dataset):
+    def __init__(self, study_ids, channels: int, patch_size: int, d_side: float, series_description: str, condition: str, generated_coordinate_file: str, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
+        self.study_ids = list(study_ids)
+        self.patch_size = int(patch_size)
+        self.channels = int(channels)
+        self.d_side = d_side
+        logger.info(f'Output will have patch_size {self.patch_size} and {channels} channels, cover area with side of {d_side} mm')
+        self.mode = mode
+        self.transform = transform
+        if self.mode == 'train' or self.mode == 'valid':
+            self.labels_df, self.coordinate_df, self.series_description_df = load_train_files(relative_directory=rsnautils.relative_directory, clean=rsnautils.CLEAN)
+        else:
+            self.labels_df = None
+            self.coordinate_df = None
+            self.series_description_df = load_test_files(relative_directory=rsnautils.relative_directory)
+
+        if load_studies is None:
+            logger.info(f'Loading {len(study_ids)} Studies')
+            self.studies = [OrientedStudy(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
+            logger.info(f'Done')
+        else:
+            logger.info(f'Referencing pre-loaded studies')
+            self.studies = load_studies
+            assert len(self.study_ids) == len(self.studies)
+
+
+        self.label_columns = [create_column(condition, level=level) for level in LEVELS]
+        self.series_description = series_description
+        self.condition = condition
+            
+        self.pred_center_df = pd.read_csv(generated_coordinate_file)  # Should be a file just like any other coordinate file
+
+    @property
+    def labels(self):
+        return self.label_columns
+
+    def __getitem__(self, idx):
+        """
+        Will output a tensor of size LEVELS, CHANNELS, PATCH_SIZE, PATCH_SIZE
+        """
+        final_size = 5, self.patch_size, self.patch_size, int(self.channels)
+        x = np.zeros(final_size, dtype=np.uint8)
+        study = self.studies[idx]
+        study.load()
+        full_targets = self.mode == 'train' or self.mode == 'valid'
+        target = {'study_id': torch.tensor([study.study_id])}
+        if full_targets:
+            label = np.int64([study.labels[col] for col in self.label_columns])
+            target['labels'] = torch.tensor(label)
+
+        # Find all points from coordinate dataframe for this study
+        tmp = self.pred_center_df[(self.pred_center_df.study_id == study.study_id) & (self.pred_center_df.condition == self.condition)].sort_values('level')
+        assert len(tmp) <= 5
+        # For each level, find the series and extract the patch
+        saves = []
+        level_dict = {lev: i for i, lev in enumerate(LEVELS)}
+        patch_offsets = np.zeros((5, 2), dtype=int)
+        patch_scalings = np.zeros((5, 2), dtype=int)
+        series_ids = np.zeros((5,), dtype=int)
+        for row in tmp.itertuples():
+            try:
+                series = study.get_series(row.series_id)
+                x0=int(round(row.x)) 
+                y0=int(round(row.y))
+                if self.series_description == 'Axial T2':
+                    x0, y0 = y0, x0
+
+                inum = row.instance_number
+                if self.mode == 'train':
+                    gap = int(self.patch_size // 10)
+                    x0 += np.random.randint(-gap, gap+1)
+                    y0 += np.random.randint(-gap, gap+1)
+                    stack = series.get_stack(row.instance_number)
+                    k = stack._get_instance_k(row.instance_number)
+                    k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
+                    inum = stack.instance_numbers[k]
+
+                stack = series.get_stack(instance_number=inum)
+                patch, instance_numbers, patch_offset, scaling = stack.get_thick_area(instance_number=inum, slice_thickness=self.channels, x=x0, y=y0, patch_size=self.patch_size, d_mm=self.d_side)
+                lev = level_dict[row.level]
+                x[lev] = patch.transpose(1,2,0)
+                patch_offsets[lev, 0] = patch_offset[0]
+                patch_offsets[lev, 1] = patch_offset[1]
+                patch_scalings[lev, 0] = scaling[0]
+                patch_scalings[lev, 1] = scaling[1]
+                series_ids[lev] = row.series_id
+                saves.append((lev, row.level, series.series_id, instance_numbers, patch_offset, scaling))
+            except (KeyError, ValueError):
+                pass
+
+        target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
+        target['patch_scalings'] = torch.tensor(patch_scalings, dtype=torch.float)
+        target['series_ids'] = torch.tensor(series_ids, dtype=torch.long)
+        if full_targets:
+            study_mask = (self.coordinate_df.study_id == study.study_id) & (self.coordinate_df.condition == self.condition)
+            tmp2 = self.coordinate_df.loc[study_mask]
+            centers = np.zeros((5, 2), dtype=float) - 1000
+            slice_classification = np.zeros((5,self.channels), dtype=int)
+            for lev, level, series_id, instance_numbers, patch_offset, scaling in saves:
+                series = study.get_series(series_id)
+                used_instances = tmp2.loc[(tmp2.series_id == series_id) & (tmp2.level == level), 'instance_number'].unique()
+                
+                slice_classification[lev] = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
+                tmp3 = tmp2.loc[(tmp2.series_id == series_id) & (tmp2.level == level), ['x', 'y']]
+                if len(tmp3) == 1:
+                    x0, y0 = tmp3.iloc[0].values
+                    x0 /= scaling[0]
+                    y0 /= scaling[1]
+                    x0 -= patch_offset[0]
+                    y0 -= patch_offset[1]
+                    centers[lev] = x0, y0
+            target['centers'] = torch.tensor(centers, dtype=torch.float)
+            target['slice_classification'] = torch.as_tensor(slice_classification).long()
+
+                    
+        if self.transform is not None:
+            # Need to reshape it around
+            x = x.transpose(1, 2, 3, 0).reshape(self.patch_size, self.patch_size, -1)
+            x = self.transform(image=x)['image'].reshape(self.patch_size, self.patch_size, self.channels, -1).transpose(3, 0, 1, 2)
+    
+        x = x.transpose(0, 3, 1, 2)
+        if self.mode == 'test':
+            study.unload()
+        return torch.tensor(x, dtype=torch.float) / 255.0, target
+
+    def __len__(self):
+        return len(self.study_ids)
+
+
+class LevelCubeLeftRightAreaDataset(Dataset):
+    def __init__(self, study_ids, channels: int, patch_size: int, d_side: float, series_description: str, left_condition: str, right_condition: str, generated_coordinate_file: str, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
+        self.study_ids = list(study_ids)
+        self.patch_size = int(patch_size)
+        self.channels = channels
+        self.d_side = d_side
+        logger.info(f'Output will have size {self.patch_size} and {channels} channels and cover area with {d_side} mm side')
+        self.mode = mode
+        self.transform = transform
+        
+        self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in [left_condition, right_condition]], [])
+        assert len(self.label_columns) == 10
+        self.series_description = series_description
+        self.left_dataset = LevelCubeAreaDataset(study_ids=study_ids, 
+                                             channels=channels, 
+                                             patch_size=patch_size, 
+                                             d_side=d_side,
+                                             series_description=series_description, 
+                                             condition=left_condition, 
+                                             generated_coordinate_file=generated_coordinate_file, 
+                                             mode=mode, 
+                                             transform=transform, 
+                                             load_studies=None)
+        self.right_dataset = LevelCubeAreaDataset(study_ids=study_ids, 
+                                             channels=channels, 
+                                             patch_size=patch_size, 
+                                             d_side=d_side,
+                                             series_description=series_description, 
+                                             condition=right_condition, 
+                                             generated_coordinate_file=generated_coordinate_file, 
+                                             mode=mode, 
+                                             transform=transform, 
+                                             load_studies=self.left_dataset.studies)
+            
+    @property
+    def labels(self):
+        return self.label_columns
+
+    def __getitem__(self, idx):
+        """
+        Will output a tensor of size LEVELS, SIDE, CHANNELS, 2*SLICE_SIZE, 2*SLICE_SIZE
+        """
+        study = self.left_dataset.studies[idx]
+        full_targets = self.mode == 'train' or self.mode == 'valid'
+        target = {'study_id': torch.tensor([study.study_id])}
+        if full_targets:
+            label = np.int64([study.labels[col] for col in self.label_columns])
+            target['labels'] = torch.tensor(label)
+        left_x, left_targets = self.left_dataset[idx]
+        right_x, right_targets = self.right_dataset[idx]
+        if self.series_description == 'Axial T2':
+            x = torch.stack([left_x, torch.flip(right_x, dims=[-1])], dim=1)
+        else:
+            x = torch.stack([left_x, right_x], dim=1)
+
+        for key in left_targets.keys():
+            if key not in ['study_id', 'labels']:
+                left_t = left_targets[key]
+                right_t = right_targets[key]
+                target[key] = torch.stack([left_t, right_t], dim=1)
+
+        return x, target
+        
+    def __len__(self):
+        return len(self.left_dataset)

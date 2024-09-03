@@ -12,35 +12,30 @@ directories:
 
 
 dataset:
-  name: FullLevelDataset
+  name: LevelCubeLeftRightAreaDataset
   image_size: [512, 512]
+  
   # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
-  # conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]  # Use Clean level 6
+  series_description: Sagittal T1
+  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]  # Use Clean level 6
+  # series_description: Axial T2
   # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]  # Need clean level 6
-  # conditions: [Spinal Canal Stenosis]  # Need clean level 6
-  sagittal_channels: 15  # 99th percentile distance for foraminal is 48mm, with this spacing we will get 66 mm span around center instance which should cover it.
-  sagittal_subsize: 112
-  sagittal_span_mm: 50
-  sagittal_slice_dx: #3
-  axial_channels: 7  # median distance for vertebrae is 26-32mm depending on vertebrae, with this spacing we will get 15 mm span around center instance
-  axial_subsize: 224
-  axial_span_mm: 60
-  axial_slice_dx: #3
-  aug_size: 0.2
-  # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
-  # center_file: /data/phalendj/kaggle/rsna2024/train_labels_sagittal_t1.csv
+  channels: 11
+  subsize: 224
+  d_side: 50
+  aug_size: 0.1
   center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75
     normalize: True  # Helpful with generalization
     hflip: False   # Very hurtful usually - cannot segment properly and everything comes in standard locations
-    contrast: False  # Not much change
-    blur: False   # This is a major adjustment that helps with training.
+    contrast: True  # Not much change
+    blur: True   # This is a major adjustment that helps with training.
     blur_limit: 9
-    noise: False
-    downscale: False
-    distort: False  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good, especially for axial
-    rotate: False  # This is a major adjustment that helps with training.
+    noise: True
+    downscale: True
+    distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good, especially for axial
+    rotate: True  # This is a major adjustment that helps with training.
     crop:   # 0.9 Does not do much - Maybe crop more? 0.7 hurts
       use: False
       size: 512
@@ -57,18 +52,18 @@ loss:
   # patch_size: 512
   
 model:
-  name: FullLevelTDCNN
-  model_name: tf_efficientnetv2_b2.in1k
-  # nclasses: 15
+  name: tdcnnlevelside
   # model_name: densenet121
+  model_name: tf_efficientnetv2_b2.in1k
   nclasses: 3  # 6 with L/R, 3 for spinal
   num_layers: 4
-  use: axial_t2
-  preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
+  subsize: 64
+  dropout: 0.1
+  # preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
 
 optimization:
   optimizer: AdamW
-  learning_rate: 3.0e-4
+  learning_rate: 1.0e-4
   weight_decay: 1.e-2
 
   # scheduler: CosineWithWarmup

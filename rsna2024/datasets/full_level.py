@@ -106,14 +106,19 @@ class FullLevelDataset(Dataset):
                 x0 += np.random.randint(-gap, gap+1)
                 y0 += np.random.randint(-gap, gap+1)
                 k = stack._get_instance_k(row.instance_number)
-                #k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
+                if self.d_slice_sag is None:
+                    k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
                 inum = stack.instance_numbers[k]
 
             world_x, world_y, world_z = stack.get_world_coordinates(instance_number=inum, x=x0, y=y0)
-            patch1, instance_numbers1, offset1, scaling1 = stack.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag, 
-                                                                                  d_mm=self.d_sag, 
-                                                                                  dx_slice_mm=self.d_slice_sag,
-                                                                                  center=self.center_slice, center_patch=self.center_patch)
+            if self.d_slice_sag is None:
+                patch1, instance_numbers1, offset1, scaling1 = stack.get_thick_area(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag, 
+                                                                                    d_mm=self.d_sag, center=self.center_slice, center_patch=self.center_patch)
+            else:
+                patch1, instance_numbers1, offset1, scaling1 = stack.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x0, y=y0, patch_size=self.patch_size_sag, 
+                                                                                    d_mm=self.d_sag, 
+                                                                                    dx_slice_mm=self.d_slice_sag,
+                                                                                    center=self.center_slice, center_patch=self.center_patch)
             sd = 'Sagittal T1'
             res = None
             bdist = 1.e10
@@ -126,10 +131,15 @@ class FullLevelDataset(Dataset):
                         series_ids[1] = series.series_id
             if res is not None:
                 inum, x, y = res.get_instance_xy_from_world(world_x, world_y, world_z)
-                patch2, instance_numbers2, offset2, scaling2 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, 
+                if self.d_slice_sag is None:
+                    patch2, instance_numbers2, offset2, scaling2 = res.get_thick_area(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, 
                                                                                     patch_size=self.patch_size_sag, 
-                                                                                    d_mm=self.d_sag, dx_slice_mm=self.d_slice_sag,
-                                                                                    center=self.center_slice, center_patch=self.center_patch)
+                                                                                    d_mm=self.d_sag, center=self.center_slice, center_patch=self.center_patch)
+                else:
+                    patch2, instance_numbers2, offset2, scaling2 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_sag, x=x, y=y, 
+                                                                                        patch_size=self.patch_size_sag, 
+                                                                                        d_mm=self.d_sag, dx_slice_mm=self.d_slice_sag,
+                                                                                        center=self.center_slice, center_patch=self.center_patch)
             
             sd = 'Axial T2'
             res = None
@@ -145,7 +155,11 @@ class FullLevelDataset(Dataset):
                 inum, x, y = res.get_instance_xy_from_world(world_x, world_y, world_z)
                 ## TODO: DO WE FLIP X,Y -> YES?
                 x, y = y, x
-                patch3, instance_numbers3, offset3, scaling3 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax, 
+                if self.d_slice_ax is None:
+                    patch3, instance_numbers3, offset3, scaling3 = res.get_thick_area(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax, 
+                                                                                    d_mm=self.d_ax, center=self.center_slice, center_patch=self.center_patch)
+                else:
+                    patch3, instance_numbers3, offset3, scaling3 = res.get_thick_volume(instance_number=inum, slice_thickness=self.channels_ax, x=x, y=y, patch_size=self.patch_size_ax, 
                                                                                     d_mm=self.d_ax, dx_slice_mm=self.d_slice_ax,
                                                                                     center=self.center_slice, center_patch=self.center_patch)
         except KeyError:

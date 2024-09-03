@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class TDCNNModel(nn.Module):
-    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4):
+    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4, dropout: float = 0.1):
         super().__init__()
         self.feature_model = timm.create_model(
                                     model_name,
@@ -31,8 +31,9 @@ class TDCNNModel(nn.Module):
         logger.info(f'Feature dimension for tdcnn {d_model}')
         
         self.pool = nn.AdaptiveAvgPool2d(output_size=1)
-        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True)
+        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.dropout = nn.Dropout(p=dropout)
         self.classifier = nn.LazyLinear(n_classes)
 
         self.model_name = model_name
@@ -77,6 +78,7 @@ class TDCNNModel(nn.Module):
             key = [k for k in X.keys() if 'Patch' in k][0]
             X = X[key]
         y = self.forward_features(X)
+        y = self.dropout(y)
         return {'labels': self.classifier(y)}
 
 
@@ -89,6 +91,7 @@ class TDCNNInstanceModel(TDCNNModel):
             key = [k for k in X.keys() if 'Patch' in k][0]
             X = X[key]
         y = self.forward_encode(X)
+        y = self.dropout(y)
         return {'instance_labels': self.classifier(y)}
 
 
@@ -350,7 +353,7 @@ class PositionalEncoding(nn.Module):
 
 
 class TDCNNModel2(nn.Module):
-    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4):
+    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 1, n_classes: int = 3, num_layers: int = 4, dropout: float = 0.1):
         super().__init__()
         self.feature_model = timm.create_model(
                                     model_name,
@@ -366,9 +369,10 @@ class TDCNNModel2(nn.Module):
         logger.info(f'Feature dimension for tdcnn {d_model}')
         
         self.pool = nn.AdaptiveAvgPool2d(output_size=1)
-        self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=0.1)
-        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True)
+        self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=dropout)
+        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.dropout = nn.Dropout(p=dropout)
         self.classifier = nn.LazyLinear(n_classes)
 
         self.model_name = model_name
@@ -414,6 +418,7 @@ class TDCNNModel2(nn.Module):
             key = [k for k in X.keys() if 'Patch' in k][0]
             X = X[key]
         y = self.forward_features(X)
+        y = self.dropout(y)
         return {'labels': self.classifier(y)}
 
 
@@ -426,6 +431,7 @@ class TDCNNInstanceModel2(TDCNNModel2):
             key = [k for k in X.keys() if 'Patch' in k][0]
             X = X[key]
         y = self.forward_encode(X)
+        y = self.dropout(y)
         return {'instance_labels': self.classifier(y)}
 
 
