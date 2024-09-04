@@ -9,7 +9,7 @@ def test_oriented_stack1():
     series_description = 'Axial T2'
     path_to_dicom = dcl.get_series_directory(study_id, series_id)
 
-    series = dcl.OrientedSeries(path_to_dicom=path_to_dicom, series_description=series_description)
+    series = dcl.OrientedSeries(study_id=study_id, series_id=series_id, series_description=series_description)
     series.load()
     assert series.study_id == study_id
     assert series.series_id == series_id
@@ -79,7 +79,7 @@ def test_oriented_stack2():
     series_description = 'Axial T2'
     path_to_dicom = dcl.get_series_directory(study_id, series_id)
 
-    series = dcl.OrientedSeries(path_to_dicom=path_to_dicom, series_description=series_description)
+    series = dcl.OrientedSeries(study_id=study_id, series_id=series_id, series_description=series_description)
     series.load()
     stack = series.dicom_stacks[1]
     assert stack.data.shape == (23, 320, 320)

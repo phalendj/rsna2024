@@ -478,23 +478,15 @@ def get_dicom_groupings(dicom_folder, plane, reverse_sort):
 
 
 class OrientedSeries(object):
-    def __init__(self, path_to_dicom, series_description):
-        self.path_to_dicom = path_to_dicom
-        self.files = sorted([f for f in os.listdir(path_to_dicom) if '.dcm' in f], key=lambda s: int(s.replace('.dcm', '')))
-        self.study_id, self.series_id = [x for x in path_to_dicom.split('/') if len(x) > 0][-2:]
-        self.study_id = int(self.study_id)
-        self.series_id = int(self.series_id)
-        
+    def __init__(self, study_id, series_id, series_description):
+        self.path_to_dicom = get_series_directory(study_id=study_id, series_id=series_id)
+        self.study_id = study_id
+        self.series_id = series_id
         self.series_description = series_description
 
     def get_plane(self):
         return self.series_description.split()[0].lower()
 
-    # @property
-    # def data(self):
-    #     self.load()
-    #     return self.dicom_info['array']
-            
     def unload(self):
         if hasattr(self, 'dicom_stacks'):
             del self.dicom_stacks
@@ -562,22 +554,6 @@ class OrientedSeries(object):
         
         return best_stack, best_distance
 
-    def get_largest_series(self, series_description):
-        """
-        Best used for initial segmentation, will return series with the largest continuous data
-        """
-        self.load()
-        largest = None
-        most_slices = 0
-        for series_id, ssd, series in self.series:
-            if series_description == ssd:
-                stack = series.get_largest_stack()
-                if stack.number_of_instances > most_slices:
-                    most_slices = stack.number_of_instances
-                    largest = series
-        return largest
-                    
-
     def get_largest_stack(self):
         """Will find the largest stack"""
         self.load()
@@ -601,7 +577,7 @@ class OrientedStudy(object):
         self.series_dict = {}
         for row in study.itertuples():
             try:
-                s = OrientedSeries(get_series_directory(row.study_id, row.series_id), series_description=row.series_description)
+                s = OrientedSeries(study_id=row.study_id, series_id=row.series_id, series_description=row.series_description)
                 self.series_dict[row.series_id] = s
             except FileNotFoundError:
                 logger.error(f'No folder or files found for {row}')

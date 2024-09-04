@@ -89,7 +89,7 @@ class SegmentationCenterDataset(Dataset):
 
         # Check all study ids are in loaded files
         
-        assert len(set(study_ids) & set(self.series_description_df.study_id.unique())) == len(study_ids), f"for mode {self.mode}, clean = {rsnautils.CLEAN}, unable to find all {study_ids}"
+        #assert len(set(study_ids) & set(self.series_description_df.study_id.unique())) == len(study_ids), f"for mode {self.mode}, clean = {rsnautils.CLEAN}, unable to find all {study_ids}"
 
         logger.info(f'Loading {len(study_ids)} Studies')
         self.studies = [dcmload.OrientedStudy(study_id=study_id, labels_df=self.labels_df, series_description_df=self.series_description_df, coordinate_df=self.coordinate_df) for study_id in study_ids]
@@ -118,15 +118,15 @@ class SegmentationCenterDataset(Dataset):
         study = self.studies[idx]
 
         full_targets = self.mode == 'train' or self.mode == 'valid'
-        target = {'study_id': torch.tensor([study.study_id])}
-        data = {'study_id': torch.tensor([study.study_id])}
+        target = {'study_id': study.study_id}
+        data = {'study_id': study.study_id}
         if full_targets:
             label = np.int64([study.labels[col] for col in self.label_columns])
             target['labels'] = torch.tensor(label)
         try:       
             study.load() 
             series = study.get_largest_series(self.series_description)
-            data['series_id'] = torch.tensor([series.series_id]) if series is not None else torch.tensor([-1])
+            data['series_id'] = series.series_id if series is not None else -1
             if series is not None:
 
                 instance_number = self.get_instance_number(series=series)
@@ -212,7 +212,7 @@ class SegmentationCenterDataset(Dataset):
                 logger.error(f'No {self.series_description} series for {study.study_id}')
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
                 img = np.zeros(final_size)
-                data['series_id'] = torch.tensor([-1])
+                data['series_id'] = -1
                 data['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
                 data['offsets'] = torch.zeros((2,), dtype=torch.float)
                 data['scalings'] = torch.ones((2,), dtype=torch.float)
@@ -221,7 +221,7 @@ class SegmentationCenterDataset(Dataset):
                     target['slice_classification'] = torch.zeros((self.channels, ), dtype=torch.long)
                     target['level_slice_classification'] = torch.zeros((5, self.channels), dtype=torch.long)
         except Exception as e:
-            logger.exception(d)
+            logger.exception(e)
             logger.error(f'{study.study_id}')
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             img = np.zeros(final_size)

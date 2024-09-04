@@ -117,4 +117,25 @@ def test_dataloader():
     assert x.shape == torch.Size([3, 1, 512, 512])
     assert t['centers'].shape == torch.Size([3, 5, 2])
     assert t['labels'].shape == torch.Size([3, 5])
-    assert torch.all(t['study_id'] == torch.tensor([[4003253], [4646740], [7143189]]))
+    assert torch.all(t['study_id'] == torch.tensor([[4003253, 4646740, 7143189]]))
+
+
+def test_dataloader2():
+    ds = segmentationsingle.SegmentationCenterDataset(study_ids=['4003253',    '4646740',    '7143189'],
+                                                                 image_size=[512, 512],
+                                                                 channels=1,
+                                                                 conditions=['Spinal Canal Stenosis'],
+                                                                 series_description='Sagittal T2/STIR',
+                                                                 mode='test', 
+                                                                 aug_size=0.1,
+                                                                 transform=None
+                                                            )
+    
+    dl = DataLoader(ds, batch_size=3, shuffle=False, pin_memory=True, drop_last=True, num_workers=1)
+    
+    data, t = next(iter(dl))
+
+    x = data['Sagittal T2/STIR Patch']
+
+    assert x.shape == torch.Size([3, 1, 512, 512])
+    assert t['study_id'] == ['4003253', '4646740', '7143189']

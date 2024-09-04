@@ -16,13 +16,16 @@ dataset:
   image_size: [512, 512]
   
   # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
-  series_description: Sagittal T1
-  conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]  # Use Clean level 6
-  # series_description: Axial T2
-  # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]  # Need clean level 6
-  channels: 11
+  # series_description: Sagittal T1
+  # conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]  # Use Clean level 6
+  # channels: 11
+  # subsize: 224
+  # d_side: 50
+  series_description: Axial T2
+  conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]  # Need clean level 6
+  channels: 7
   subsize: 224
-  d_side: 50
+  d_side: 40
   aug_size: 0.1
   center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
@@ -53,8 +56,8 @@ loss:
   
 model:
   name: tdcnnlevelside
-  # model_name: densenet121
-  model_name: tf_efficientnetv2_b2.in1k
+  model_name: densenet121
+  # model_name: tf_efficientnetv2_b2.in1k
   nclasses: 3  # 6 with L/R, 3 for spinal
   num_layers: 4
   subsize: 64

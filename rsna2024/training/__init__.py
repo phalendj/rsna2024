@@ -139,7 +139,7 @@ def train_one_fold(model, cfg, fold: int):
             optimizer.zero_grad()
             for idx, (x, t) in enumerate(pbar):  
                 if isinstance(x, dict):
-                    x = {k: v.to(device) for k, v in x.items()}
+                    x = rsnautils.move_dict(x, device=device)
                     with autocast:
                         y = model(x)
                         loss = criterion(y, t)
@@ -202,7 +202,7 @@ def train_one_fold(model, cfg, fold: int):
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
                     if isinstance(x, dict):
-                        x = {k: v.to(device) for k, v in x.items()}
+                        x = rsnautils.move_dict(x, device=device)
                         with autocast:
                             y = model(x)
                             loss = criterion(y, t)

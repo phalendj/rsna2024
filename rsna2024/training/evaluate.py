@@ -72,7 +72,7 @@ def evaluate(model, cfg):
             with torch.no_grad():
                 for idx, (x, t) in enumerate(pbar):
                     if isinstance(x, dict):
-                        x = {k: v.to(device) for k, v in x.items()}
+                        x = rsnautils.move_dict(x, device=device)
                         with autocast:
                             y = model(x)
 
@@ -87,7 +87,11 @@ def evaluate(model, cfg):
                         x = x.to(device)
                         with autocast:
                             y = model(x)
-                    study_ids = t['study_id'][:, 0]
+
+                    try:
+                        study_ids = t['study_id'].numpy()
+                    except ValueError:
+                        study_ids = t['study_id']
                     
                     for col in range(N_LABELS):
                         pred = y['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
@@ -192,7 +196,7 @@ def predict(cfg):
         with torch.no_grad():
             for idx, (x, t) in enumerate(pbar):
                 if isinstance(x, dict):
-                    x = {k: v.to(device) for k, v in x.items()}
+                    x = rsnautils.move_dict(x, device=device)
                     with autocast:
                         preds = [model(x) for model in all_models]
 
@@ -208,7 +212,10 @@ def predict(cfg):
                     with autocast:
                         preds = [model(x) for model in all_models]
 
-                study_ids = t['study_id'][:, 0].numpy()
+                try:
+                    study_ids = t['study_id'].numpy()
+                except ValueError:
+                    study_ids = t['study_id']
                 
                 for i, study_id in enumerate(study_ids):
                     for col in range(N_LABELS):
@@ -287,7 +294,7 @@ def generate_instance_numbers(cfg):
     with torch.no_grad():
         for x, t in tqdm(valid_dl):
             if isinstance(x, dict):
-                x = {k: v.to(device) for k, v in x.items()}
+                x = rsnautils.move_dict(x, device=device)
                 with autocast:
                     preds = [model(x) for model in all_models]
 
@@ -302,8 +309,17 @@ def generate_instance_numbers(cfg):
                 x = x.to(device)
                 with autocast:
                     preds = [model(x) for model in all_models]
-            study_ids = t['study_id'][:, 0].numpy()
-            series_ids = x['series_id'][:, 0].cpu().numpy()
+
+                try:
+                    study_ids = t['study_id'].numpy()
+                except Exception:
+                    study_ids = t['study_id']
+            
+                try:
+                    series_ids = x['series_id'].cpu().numpy()
+                except Exception:
+                    series_ids = x['series_id']
+
             tmp = []
             for i, study_id in enumerate(study_ids):
                 if study_id in df_clean_i.index:
@@ -527,7 +543,7 @@ def generate_xy_values(cfg):
         for x, t in tqdm(valid_dl):
             try:
                 if isinstance(x, dict):
-                    x = {k: v.to(device) for k, v in x.items()}
+                    x = rsnautils.move_dict(x, device=device)
                     with autocast:
                         preds = [model(x) for model in all_models]
                 elif isinstance(x, tuple) or isinstance(x, list):
@@ -541,8 +557,16 @@ def generate_xy_values(cfg):
                     x = x.to(device)
                     with autocast:
                         preds = [model(x) for model in all_models]
-                study_ids = t['study_id'][:, 0].numpy()
-                series_ids = x['series_id'][:, 0].cpu().numpy()
+                try:
+                    study_ids = t['study_id'].numpy()
+                except Exception:
+                    study_ids = t['study_id']
+            
+                try:
+                    series_ids = x['series_id'].cpu().numpy()
+                except Exception:
+                    series_ids = x['series_id']
+                    
                 offsets = x['offsets'].cpu().numpy()
                 scalings = x['scalings'].cpu().numpy()
                 for i in range(len(study_ids)):

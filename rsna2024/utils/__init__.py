@@ -56,3 +56,7 @@ def in_notebook() -> bool:
     except (ImportError, AttributeError):
         return False
     return True
+
+
+def move_dict(x, device):
+    return {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in x.items()}

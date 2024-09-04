@@ -16,6 +16,9 @@ class CFG:
     hflip = False
     contrast = True
     blur = True
+    blur_limit = 9
+    noise = True
+    downscale = True
     distort = True
     rotate = True
     normalize=True
