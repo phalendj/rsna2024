@@ -195,41 +195,44 @@ def predict(cfg):
     with tqdm(valid_dl, leave=True) as pbar:
         with torch.no_grad():
             for idx, (x, t) in enumerate(pbar):
-                if isinstance(x, dict):
-                    x = rsnautils.move_dict(x, device=device)
-                    with autocast:
-                        preds = [model(x) for model in all_models]
-
-                elif isinstance(x, tuple) or isinstance(x, list):
-                    x1, x2, x3 = x
-                    x1 = x1.to(device)
-                    x2 = x2.to(device)
-                    x3 = x3.to(device)
-                    with autocast:
-                        preds = [model(x1, x2, x3) for model in all_models]
-                else:
-                    x = x.to(device)
-                    with autocast:
-                        preds = [model(x) for model in all_models]
-
                 try:
-                    study_ids = t['study_id'].numpy()
-                except ValueError:
-                    study_ids = t['study_id']
-                
-                for i, study_id in enumerate(study_ids):
-                    for col in range(N_LABELS):
-                        if study_id in df_clean_i.index:
-                            fold = df_clean_i.loc[study_id, 'fold']
-                            pred = preds[fold]
-                            pred = pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
-                        else:
-                            pred = torch.mean(torch.stack([pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu() for pred in preds], dim=0), dim=0).numpy()
+                    if isinstance(x, dict):
+                        x = rsnautils.move_dict(x, device=device)
+                        with autocast:
+                            preds = [model(x) for model in all_models]
 
-                        lab = label_columns[col]
-                        for i in range(len(study_ids)):
-                            row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
-                            model_predictions.append(row)
+                    elif isinstance(x, tuple) or isinstance(x, list):
+                        x1, x2, x3 = x
+                        x1 = x1.to(device)
+                        x2 = x2.to(device)
+                        x3 = x3.to(device)
+                        with autocast:
+                            preds = [model(x1, x2, x3) for model in all_models]
+                    else:
+                        x = x.to(device)
+                        with autocast:
+                            preds = [model(x) for model in all_models]
+
+                    try:
+                        study_ids = t['study_id'].numpy()
+                    except ValueError:
+                        study_ids = t['study_id']
+                    
+                    for i, study_id in enumerate(study_ids):
+                        for col in range(N_LABELS):
+                            if study_id in df_clean_i.index:
+                                fold = df_clean_i.loc[study_id, 'fold']
+                                pred = preds[fold]
+                                pred = pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
+                            else:
+                                pred = torch.mean(torch.stack([pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu() for pred in preds], dim=0), dim=0).numpy()
+
+                            lab = label_columns[col]
+                            for i in range(len(study_ids)):
+                                row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
+                                model_predictions.append(row)
+                except Exception as e:
+                    logger.exception(e)
                         
     new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
     pcol = ['normal_mild', 'moderate', 'severe']
