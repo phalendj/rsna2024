@@ -590,7 +590,7 @@ class LevelCubeLeftRightAreaDataset(Dataset):
         """
         study = self.left_dataset.studies[idx]
         full_targets = self.mode == 'train' or self.mode == 'valid'
-        target = {'study_id': torch.tensor([study.study_id])}
+        target = {'study_id': study.study_id}
         if full_targets:
             label = np.int64([study.labels[col] for col in self.label_columns])
             target['labels'] = torch.tensor(label)
