@@ -446,87 +446,100 @@ class LevelCubeAreaDataset(Dataset):
         """
         final_size = 5, self.patch_size, self.patch_size, int(self.channels)
         x = np.zeros(final_size, dtype=np.uint8)
-        study = self.studies[idx]
-        study.load()
         full_targets = self.mode == 'train' or self.mode == 'valid'
-        target = {'study_id': torch.tensor([study.study_id])}
-        if full_targets:
-            label = np.int64([study.labels[col] for col in self.label_columns])
-            target['labels'] = torch.tensor(label)
-
-        # Find all points from coordinate dataframe for this study
-        tmp = self.pred_center_df[(self.pred_center_df.study_id == study.study_id) & (self.pred_center_df.condition == self.condition)].sort_values('level')
-        assert len(tmp) <= 5
-        # For each level, find the series and extract the patch
-        saves = []
-        level_dict = {lev: i for i, lev in enumerate(LEVELS)}
+        study = self.studies[idx]
+        target = {'study_id': study.study_id}
         patch_offsets = np.zeros((5, 2), dtype=int)
         patch_scalings = np.zeros((5, 2), dtype=int)
         series_ids = np.zeros((5,), dtype=int)
-        for row in tmp.itertuples():
-            try:
-                series = study.get_series(row.series_id)
-                x0=int(round(row.x)) 
-                y0=int(round(row.y))
-                if self.series_description == 'Axial T2':
-                    x0, y0 = y0, x0
 
-                inum = row.instance_number
-                if self.mode == 'train':
-                    gap = int(self.patch_size // 10)
-                    x0 += np.random.randint(-gap, gap+1)
-                    y0 += np.random.randint(-gap, gap+1)
-                    stack = series.get_stack(row.instance_number)
-                    k = stack._get_instance_k(row.instance_number)
-                    k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
-                    inum = stack.instance_numbers[k]
+        try:
+            study.load()
+            if full_targets:
+                label = np.int64([study.labels[col] for col in self.label_columns])
+                target['labels'] = torch.tensor(label)
 
-                stack = series.get_stack(instance_number=inum)
-                patch, instance_numbers, patch_offset, scaling = stack.get_thick_area(instance_number=inum, slice_thickness=self.channels, x=x0, y=y0, patch_size=self.patch_size, d_mm=self.d_side)
-                lev = level_dict[row.level]
-                x[lev] = patch.transpose(1,2,0)
-                patch_offsets[lev, 0] = patch_offset[0]
-                patch_offsets[lev, 1] = patch_offset[1]
-                patch_scalings[lev, 0] = scaling[0]
-                patch_scalings[lev, 1] = scaling[1]
-                series_ids[lev] = row.series_id
-                saves.append((lev, row.level, series.series_id, instance_numbers, patch_offset, scaling))
-            except (KeyError, ValueError):
-                pass
+            # Find all points from coordinate dataframe for this study
+            tmp = self.pred_center_df[(self.pred_center_df.study_id == study.study_id) & (self.pred_center_df.condition == self.condition)].sort_values('level')
+            # assert len(tmp) <= 5
+            # For each level, find the series and extract the patch
+            saves = []
+            level_dict = {lev: i for i, lev in enumerate(LEVELS)}
+            patch_offsets = np.zeros((5, 2), dtype=int)
+            patch_scalings = np.zeros((5, 2), dtype=int)
+            series_ids = np.zeros((5,), dtype=int)
+            for row in tmp.itertuples():
+                try:
+                    series = study.get_series(row.series_id)
+                    x0=int(round(row.x)) 
+                    y0=int(round(row.y))
+                    if self.series_description == 'Axial T2':
+                        x0, y0 = y0, x0
 
-        target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
-        target['patch_scalings'] = torch.tensor(patch_scalings, dtype=torch.float)
-        target['series_ids'] = torch.tensor(series_ids, dtype=torch.long)
-        if full_targets:
-            study_mask = (self.coordinate_df.study_id == study.study_id) & (self.coordinate_df.condition == self.condition)
-            tmp2 = self.coordinate_df.loc[study_mask]
-            centers = np.zeros((5, 2), dtype=float) - 1000
-            slice_classification = np.zeros((5,self.channels), dtype=int)
-            for lev, level, series_id, instance_numbers, patch_offset, scaling in saves:
-                series = study.get_series(series_id)
-                used_instances = tmp2.loc[(tmp2.series_id == series_id) & (tmp2.level == level), 'instance_number'].unique()
-                
-                slice_classification[lev] = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
-                tmp3 = tmp2.loc[(tmp2.series_id == series_id) & (tmp2.level == level), ['x', 'y']]
-                if len(tmp3) == 1:
-                    x0, y0 = tmp3.iloc[0].values
-                    x0 /= scaling[0]
-                    y0 /= scaling[1]
-                    x0 -= patch_offset[0]
-                    y0 -= patch_offset[1]
-                    centers[lev] = x0, y0
-            target['centers'] = torch.tensor(centers, dtype=torch.float)
-            target['slice_classification'] = torch.as_tensor(slice_classification).long()
+                    inum = row.instance_number
+                    if self.mode == 'train':
+                        gap = int(self.patch_size // 10)
+                        x0 += np.random.randint(-gap, gap+1)
+                        y0 += np.random.randint(-gap, gap+1)
+                        stack = series.get_stack(row.instance_number)
+                        k = stack._get_instance_k(row.instance_number)
+                        k = np.clip(k + np.random.randint(-1, 2), 0, stack.number_of_instances-1)
+                        inum = stack.instance_numbers[k]
 
+                    stack = series.get_stack(instance_number=inum)
+                    patch, instance_numbers, patch_offset, scaling = stack.get_thick_area(instance_number=inum, slice_thickness=self.channels, x=x0, y=y0, patch_size=self.patch_size, d_mm=self.d_side)
+                    lev = level_dict[row.level]
+                    x[lev] = patch.transpose(1,2,0)
+                    patch_offsets[lev, 0] = patch_offset[0]
+                    patch_offsets[lev, 1] = patch_offset[1]
+                    patch_scalings[lev, 0] = scaling[0]
+                    patch_scalings[lev, 1] = scaling[1]
+                    series_ids[lev] = row.series_id if isinstance(row.series_id, int) else 0
+                    saves.append((lev, row.level, series.series_id, instance_numbers, patch_offset, scaling))
+                except (KeyError, ValueError):
+                    pass
+
+            target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
+            target['patch_scalings'] = torch.tensor(patch_scalings, dtype=torch.float)
+            target['series_ids'] = torch.tensor(series_ids, dtype=torch.long)
+            if full_targets:
+                study_mask = (self.coordinate_df.study_id == study.study_id) & (self.coordinate_df.condition == self.condition)
+                tmp2 = self.coordinate_df.loc[study_mask]
+                centers = np.zeros((5, 2), dtype=float) - 1000
+                slice_classification = np.zeros((5,self.channels), dtype=int)
+                for lev, level, series_id, instance_numbers, patch_offset, scaling in saves:
+                    series = study.get_series(series_id)
+                    used_instances = tmp2.loc[(tmp2.series_id == series_id) & (tmp2.level == level), 'instance_number'].unique()
                     
-        if self.transform is not None:
-            # Need to reshape it around
-            x = x.transpose(1, 2, 3, 0).reshape(self.patch_size, self.patch_size, -1)
-            x = self.transform(image=x)['image'].reshape(self.patch_size, self.patch_size, self.channels, -1).transpose(3, 0, 1, 2)
-    
-        x = x.transpose(0, 3, 1, 2)
+                    slice_classification[lev] = np.array([(1 if j in used_instances else 0) for j in instance_numbers], dtype=int)
+                    tmp3 = tmp2.loc[(tmp2.series_id == series_id) & (tmp2.level == level), ['x', 'y']]
+                    if len(tmp3) == 1:
+                        x0, y0 = tmp3.iloc[0].values
+                        x0 /= scaling[0]
+                        y0 /= scaling[1]
+                        x0 -= patch_offset[0]
+                        y0 -= patch_offset[1]
+                        centers[lev] = x0, y0
+                target['centers'] = torch.tensor(centers, dtype=torch.float)
+                target['slice_classification'] = torch.as_tensor(slice_classification).long()
+
+                        
+            if self.transform is not None:
+                # Need to reshape it around
+                x = x.transpose(1, 2, 3, 0).reshape(self.patch_size, self.patch_size, -1)
+                x = self.transform(image=x)['image'].reshape(self.patch_size, self.patch_size, self.channels, -1).transpose(3, 0, 1, 2)
+        
+            
+            
+        except Exception as e:
+            target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
+            target['patch_scalings'] = torch.tensor(patch_scalings, dtype=torch.float)
+            target['series_ids'] = torch.tensor(series_ids, dtype=torch.long)
+            pass
+
         if self.mode == 'test':
             study.unload()
+        x = x.transpose(0, 3, 1, 2)
         return torch.tensor(x, dtype=torch.float) / 255.0, target
 
     def __len__(self):
