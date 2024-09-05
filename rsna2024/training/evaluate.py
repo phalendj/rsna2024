@@ -293,69 +293,73 @@ def generate_instance_numbers(cfg):
 
     with torch.no_grad():
         for x, t in tqdm(valid_dl):
-            if isinstance(x, dict):
-                x = rsnautils.move_dict(x, device=device)
-                with autocast:
-                    preds = [model(x) for model in all_models]
-
-            elif isinstance(x, tuple) or isinstance(x, list):
-                x1, x2, x3 = x
-                x1 = x1.to(device)
-                x2 = x2.to(device)
-                x3 = x3.to(device)
-                with autocast:
-                    preds = [model(x1, x2, x3) for model in all_models]
-            else:
-                x = x.to(device)
-                with autocast:
-                    preds = [model(x) for model in all_models]
-
             try:
-                study_ids = t['study_id'].numpy()
-            except Exception:
-                study_ids = t['study_id']
-        
-            try:
-                series_ids = x['series_id'].cpu().numpy()
-            except Exception:
-                series_ids = x['series_id']
+                if isinstance(x, dict):
+                    x = rsnautils.move_dict(x, device=device)
+                    with autocast:
+                        preds = [model(x) for model in all_models]
 
-            tmp = []
-            for i, study_id in enumerate(study_ids):
-                if study_id in df_clean_i.index:
-                    fold = df_clean_i.loc[study_id, 'fold']
-                    pred = preds[fold]
-                    v = pred['instance_labels']
-                    if v.shape[-1] == 10:
-                        v = v.reshape(len(study_ids), -1, 5, 2)
-                    class_pred = v.softmax(dim=-1)[i, ..., 1].cpu()
-                    if len(class_pred.shape) == 2:
-                        class_pred = class_pred.transpose(-1,-2)
+                elif isinstance(x, tuple) or isinstance(x, list):
+                    x1, x2, x3 = x
+                    x1 = x1.to(device)
+                    x2 = x2.to(device)
+                    x3 = x3.to(device)
+                    with autocast:
+                        preds = [model(x1, x2, x3) for model in all_models]
                 else:
-                    v = preds[0]['instance_labels']
-                    if v.shape[-1] == 10:
-                        class_pred = torch.mean(torch.stack([pred['instance_labels'].reshape(len(study_ids), -1, 5, 2).softmax(dim=-1)[i, ..., 1].cpu() for pred in preds], dim=0), dim=0).transpose(-1,-2)
+                    x = x.to(device)
+                    with autocast:
+                        preds = [model(x) for model in all_models]
+
+                try:
+                    study_ids = t['study_id'].numpy()
+                except Exception:
+                    study_ids = t['study_id']
+            
+                try:
+                    series_ids = x['series_id'].cpu().numpy()
+                except Exception:
+                    series_ids = x['series_id']
+
+                tmp = []
+                for i, study_id in enumerate(study_ids):
+                    if study_id in df_clean_i.index:
+                        fold = df_clean_i.loc[study_id, 'fold']
+                        pred = preds[fold]
+                        v = pred['instance_labels']
+                        if v.shape[-1] == 10:
+                            v = v.reshape(len(study_ids), -1, 5, 2)
+                        class_pred = v.softmax(dim=-1)[i, ..., 1].cpu()
+                        if len(class_pred.shape) == 2:
+                            class_pred = class_pred.transpose(-1,-2)
                     else:
-                        class_pred = torch.mean(torch.stack([pred['instance_labels'].softmax(dim=-1)[i, ..., 1].cpu() for pred in preds], dim=0), dim=0)
-                tmp.append(class_pred)
+                        v = preds[0]['instance_labels']
+                        if v.shape[-1] == 10:
+                            class_pred = torch.mean(torch.stack([pred['instance_labels'].reshape(len(study_ids), -1, 5, 2).softmax(dim=-1)[i, ..., 1].cpu() for pred in preds], dim=0), dim=0).transpose(-1,-2)
+                        else:
+                            class_pred = torch.mean(torch.stack([pred['instance_labels'].softmax(dim=-1)[i, ..., 1].cpu() for pred in preds], dim=0), dim=0)
+                    tmp.append(class_pred)
 
-            class_pred = torch.stack(tmp, dim=0)
-            #print(class_pred.shape)
-            loc = (class_pred*w).sum(dim=-1)/class_pred.sum(dim=-1)
-            ind = torch.round(loc.float()).long()
+                class_pred = torch.stack(tmp, dim=0)
+                #print(class_pred.shape)
+                loc = (class_pred*w).sum(dim=-1)/class_pred.sum(dim=-1)
+                ind = torch.round(loc.float()).long()
 
-            if len(ind.shape) == 1:
-                instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind)]
-
-                for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
-                    for lev in LEVELS:
-                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
-            else:
-                for k, lev in enumerate(LEVELS):
-                    instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind[:, k])]
+                if len(ind.shape) == 1:
+                    instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind)]
 
                     for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
-                        results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
+                        for lev in LEVELS:
+                            results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
+                else:
+                    for k, lev in enumerate(LEVELS):
+                        instance_numbers = [x['instance_numbers'].cpu()[i, j].item() for i, j in enumerate(ind[:, k])]
+
+                        for study_id, series_id, z in zip(study_ids, series_ids, instance_numbers):
+                            results.append({'study_id': study_id, 'series_id': series_id, 'instance_number': z, 'condition': 'Spinal Canal Stenosis', 'level': lev, 'x': 0, 'y': 0})
+            except Exception as e:
+                logger.exception(e)
+                pass
 
     pred_center_df = pd.DataFrame(results)
     fname = model_directory / 'predicted_label_coordinates.csv'
