@@ -310,15 +310,15 @@ def generate_instance_numbers(cfg):
                 with autocast:
                     preds = [model(x) for model in all_models]
 
-                try:
-                    study_ids = t['study_id'].numpy()
-                except Exception:
-                    study_ids = t['study_id']
-            
-                try:
-                    series_ids = x['series_id'].cpu().numpy()
-                except Exception:
-                    series_ids = x['series_id']
+            try:
+                study_ids = t['study_id'].numpy()
+            except Exception:
+                study_ids = t['study_id']
+        
+            try:
+                series_ids = x['series_id'].cpu().numpy()
+            except Exception:
+                series_ids = x['series_id']
 
             tmp = []
             for i, study_id in enumerate(study_ids):
@@ -566,7 +566,7 @@ def generate_xy_values(cfg):
                     series_ids = x['series_id'].cpu().numpy()
                 except Exception:
                     series_ids = x['series_id']
-                    
+
                 offsets = x['offsets'].cpu().numpy()
                 scalings = x['scalings'].cpu().numpy()
                 for i in range(len(study_ids)):
