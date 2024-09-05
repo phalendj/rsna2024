@@ -225,7 +225,7 @@ class SegmentationCenterDataset(Dataset):
             logger.error(f'{study.study_id}')
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             img = np.zeros(final_size)
-            data['series_id'] = torch.tensor([-1])
+            data['series_id'] = -1
             data['instance_numbers'] = torch.ones((self.channels, ), dtype=torch.long)*-1
             data['offsets'] = torch.zeros((2,), dtype=torch.float)
             data['scalings'] = torch.ones((2,), dtype=torch.float)
