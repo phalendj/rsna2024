@@ -454,7 +454,7 @@ def detect_single_levels(OUT, cut = 0.9):
 
 
 def fill_coordinates(row, study, dft, df):
-    assert row.study_id == study.study_id
+    # assert row.study_id == study.study_id
     series = study.get_series(row.series_id)
     stack = series.get_stack(row.instance_number)
     world_x, world_y, world_z = stack.get_world_coordinates(instance_number=row.instance_number, x=row.x, y=row.y)
@@ -624,19 +624,18 @@ def generate_xy_values(cfg):
 
     res = []
     for study in tqdm(valid_ds.studies):
-        study.load()
         tmp = pred_center_df[pred_center_df.study_id == study.study_id]
         for row in tmp.itertuples():
             try:
+                study.load()
                 if mode == 'test':
                     filled_df = fill_coordinates(row, study=study, dft=dft, df=None)
                 else:
                     filled_df = fill_coordinates(row, study=study, dft=dft, df=df)
                 res.append(filled_df)
-            except np.linalg.LinAlgError:
-                print(f'LinAlg Error on {study}')
-            except KeyError:
-                print(f'KeyError on {study}, {study.series_dict}')
+            except Exception as e:
+                logger.exception(e)
+                logger.error(f'Error on {row}')
         study.unload()
 
     temp_filler = pd.concat(res)
