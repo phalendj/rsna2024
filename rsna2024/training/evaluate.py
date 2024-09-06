@@ -234,7 +234,7 @@ def predict(cfg):
                 except Exception as e:
                     logger.exception(e)
                         
-    new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe'])
+    new_pred = pd.DataFrame(model_predictions, columns=['row_id', 'normal_mild', 'moderate', 'severe']).fillna(0.33)
     pcol = ['normal_mild', 'moderate', 'severe']
     totals = new_pred[pcol].sum(axis=1)
     for c in pcol:
@@ -466,10 +466,10 @@ def fill_coordinates(row, study, dft, df):
         tdft = dft[dft.study_id.isin(df[df.fold != fold].study_id.unique()) & (dft.condition == condition) & (dft.level == row.level)]
     condition_lower = condition.lower().replace(' ', '_')
     CONDITION_2_SERIES_DESC = {'Spinal Canal Stenosis': 'Sagittal T2/STIR',
-                         'Left Neural Foraminal Narrowing': 'Sagittal T1',
-                         'Right Neural Foraminal Narrowing': 'Sagittal T1',
-                         'Left Subarticular Stenosis': 'Axial T2',
-                         'Right Subarticular Stenosis': 'Axial T2'}
+                                'Left Neural Foraminal Narrowing': 'Sagittal T1',
+                                'Right Neural Foraminal Narrowing': 'Sagittal T1',
+                                'Left Subarticular Stenosis': 'Axial T2',
+                                'Right Subarticular Stenosis': 'Axial T2'}
     res = []
     for target_condition in CONDITIONS:
         if target_condition != condition:
@@ -638,11 +638,17 @@ def generate_xy_values(cfg):
                 logger.error(f'Error on {row}')
         study.unload()
 
-    temp_filler = pd.concat(res)
-    full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
     fname = model_directory / 'all_predicted_center_coordinates.csv'
     if mode == 'test':
         fname = 'all_predicted_center_coordinates.csv'
     logger.info(f'Writing result to {fname}')
-    full_pred_center.to_csv(fname, index=False)
+    if len(res) > 0:
+        temp_filler = pd.concat(res)
+        full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
+        full_pred_center.to_csv(fname, index=False)
+    else:
+        print('No results')
+        pred_center_df.to_csv(fname, index=False)
+
     logger.info(f'Wrote output to {fname}')
+        
