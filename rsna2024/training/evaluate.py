@@ -223,14 +223,13 @@ def predict(cfg):
                             if study_id in df_clean_i.index:
                                 fold = df_clean_i.loc[study_id, 'fold']
                                 pred = preds[fold]
-                                pred = pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu().numpy()
+                                pred = pred['labels'][i,col*3:col*3+3].softmax(dim=0).cpu().numpy()
                             else:
-                                pred = torch.mean(torch.stack([pred['labels'][:,col*3:col*3+3].softmax(dim=1).cpu() for pred in preds], dim=0), dim=0).numpy()
+                                pred = torch.mean(torch.stack([pred['labels'][i,col*3:col*3+3].softmax(dim=0).cpu() for pred in preds], dim=0), dim=0).numpy()
 
                             lab = label_columns[col]
-                            for i in range(len(study_ids)):
-                                row = [str(study_ids[i].item()) + '_' + lab, pred[i, 0], pred[i, 1], pred[i, 2]]
-                                model_predictions.append(row)
+                            row = [str(study_id) + '_' + lab, pred[0], pred[1], pred[2]]
+                            model_predictions.append(row)
                 except Exception as e:
                     logger.exception(e)
                         
