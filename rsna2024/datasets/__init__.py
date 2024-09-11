@@ -130,7 +130,11 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
     df = df.fillna(-100)  # special signal to crossentropy loss to say do not count
     df = df.replace(LABEL2ID)
     
-    dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates.csv')
+    if clean > 1000:
+        dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates_original.csv')
+        clean -= 1000
+    else:
+        dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates.csv')
     dfd = pd.read_csv(f'{relative_directory}/train_series_descriptions.csv')
 
     if clean:

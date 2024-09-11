@@ -3,7 +3,7 @@ clean: 6
 debug: False
 train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
-load_directory: # /home/phalendj/code/rsna2024/outputs/2024-08-29/14-29-59  # For reloads
+load_directory:  # /home/phalendj/code/rsna2024/outputs/2024-08-29/14-29-59  # For reloads
 mode: valid
 
 directories:

@@ -521,7 +521,7 @@ class LevelCubeAreaDataset(Dataset):
                         y0 -= patch_offset[1]
                         centers[lev] = x0, y0
                 target['centers'] = torch.tensor(centers, dtype=torch.float)
-                target['slice_classification'] = torch.as_tensor(slice_classification).long()
+                target['level_slice_classification'] = torch.as_tensor(slice_classification).long()
 
                         
             if self.transform is not None:
@@ -586,7 +586,7 @@ class LevelCubeLeftRightAreaDataset(Dataset):
 
     def __getitem__(self, idx):
         """
-        Will output a tensor of size LEVELS, SIDE, CHANNELS, 2*SLICE_SIZE, 2*SLICE_SIZE
+        Will output a tensor of size LEVELS, SIDE, CHANNELS, PATCH_SIZE, PATCH_SIZE
         """
         study = self.left_dataset.studies[idx]
         full_targets = self.mode == 'train' or self.mode == 'valid'
@@ -598,6 +598,8 @@ class LevelCubeLeftRightAreaDataset(Dataset):
         right_x, right_targets = self.right_dataset[idx]
         if self.series_description == 'Axial T2':
             x = torch.stack([left_x, torch.flip(right_x, dims=[-1])], dim=1)
+        # elif self.series_description == 'Sagittal T1':
+        #     x = torch.stack([left_x, torch.flip(right_x, dims=[-3])], dim=1)
         else:
             x = torch.stack([left_x, right_x], dim=1)
 

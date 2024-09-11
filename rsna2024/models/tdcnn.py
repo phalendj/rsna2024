@@ -374,6 +374,7 @@ class TDCNNModel2(nn.Module):
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
         self.dropout = nn.Dropout(p=dropout)
         self.classifier = nn.LazyLinear(n_classes)
+        self.n_classes = n_classes
 
         self.model_name = model_name
     
@@ -433,6 +434,24 @@ class TDCNNInstanceModel2(TDCNNModel2):
         y = self.forward_encode(X)
         y = self.dropout(y)
         return {'instance_labels': self.classifier(y)}
+    
+
+class TDCNNLevelInstanceModel2(TDCNNModel2):
+    def name(self):
+        return f'td_cnn2_level_instance_{self.model_name}'
+    
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+
+        B, L, I, H, W = X.shape
+        X = X.flatten(0, 1)
+        y = self.forward_encode(X)
+        y = self.dropout(y)
+        y = self.classifier(y)
+        y = y.reshape(B, L, -1)
+        return {'instance_labels': y}
 
 
 class TDCNNLevelModel2(TDCNNModel2):
@@ -442,7 +461,7 @@ class TDCNNLevelModel2(TDCNNModel2):
         t = super().forward(x)
         y = t['labels']
         # y.shape = B*L, nclasses
-        y = y.reshape(B, L, -1, 3)  # Now B, Condition, Level, diagnosis
+        y = y.reshape(B, L, -1, self.n_classes)  # Now B, Condition, Level, diagnosis
         y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
         return y
     
@@ -487,7 +506,7 @@ class TDCNNLevelSideModel2(TDCNNModel2):
         y = t['labels']
         # y.shape = B*L*S, nclasses
         y = y.reshape(B, L, S, -1)  # Now B, Level, Side, diagnosis
-        assert y.shape[-1] == 3
+        assert y.shape[-1] == self.n_classes
         y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
         return y
     

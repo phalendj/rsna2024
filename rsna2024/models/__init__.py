@@ -2,6 +2,7 @@ from . import vision2d
 from . import unet
 from . import tdcnn
 from . import conv3d
+from . import conv2p1d
 from . import full_level_tdcnn
 
 def create_model(cfg, fold):
@@ -53,6 +54,8 @@ def create_model(cfg, fold):
     
     elif cfg.name == 'ResNet3D18':
         return conv3d.ResNet3D18(cfg.nclasses)
+    elif cfg.name == 'ResNet2p1D18':
+        return conv2p1d.ResNet2p1D18(cfg.nclasses)
     elif cfg.name == 'FullLevelTDCNN':
         if cfg.preload is not None:
             model = full_level_tdcnn.FullLevelTDCNNModel(model_name=cfg.model_name, n_classes=cfg.nclasses, img_size=(512, 512), use=cfg.use, num_layers=cfg.num_layers)
