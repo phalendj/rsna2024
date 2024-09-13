@@ -98,7 +98,7 @@ class SegmentationCenterDataset(Dataset):
         self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
         self.series_description = series_description
 
-        self.failed_lookups = set()
+        self.fails = set()
 
         if self.mode == 'train' or self.mode == 'valid':
             series2cond = {'Sagittal T2/STIR': 'spinal',  'Sagittal T1': 'foraminal', 'Axial T2': 'subarticular'}
