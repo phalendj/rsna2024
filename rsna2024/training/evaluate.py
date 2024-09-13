@@ -645,8 +645,8 @@ def generate_xy_values(cfg):
                     filled_df = fill_coordinates(row, study=study, dft=dft, df=df)
                 res.append(filled_df)
             except Exception as e:
-                for i in range(5):
-                    fails.append((study.study_id, 'Sagittal T2/STIR', i))
+                level_dict = {lev: i for i, lev in enumerate(LEVELS)}
+                fails.append((study.study_id, 'Sagittal T2/STIR', level_dict[row.level]))
                 logger.exception(e)
                 logger.error(f'Error on {row}')
         study.unload()
