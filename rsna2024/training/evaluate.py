@@ -241,6 +241,9 @@ def predict(cfg):
     fname = model_directory / 'submission.csv'
     if mode == 'test':
         fname = 'submission.csv'
+        if len(valid_ds.fails) > 0:
+            fail_file = 'bad_data.csv'
+            pd.DataFrame(list(valid_ds.fails), columns=['study_id', 'series_description', 'level']).to_csv(fail_file, index=False)
     logger.info(f'Writing result to {fname}')
     new_pred.to_csv(fname, index=False)
 
@@ -367,6 +370,11 @@ def generate_instance_numbers(cfg):
     fname = model_directory / 'predicted_label_coordinates.csv'
     if mode == 'test':
         fname = 'predicted_label_coordinates.csv'
+        if len(valid_ds.fails) > 0:
+            fail_file = 'bad_data.csv'
+            pd.DataFrame(list(valid_ds.fails), columns=['study_id', 'series_description', 'level']).to_csv(fail_file, index=False)
+
+
     logger.info(f'Writing result to {fname}')
     pred_center_df.to_csv(fname, index=False)
     
@@ -611,6 +619,9 @@ def generate_xy_values(cfg):
     fname = model_directory / 'predicted_center_coordinates.csv'
     if mode == 'test':
         fname = 'predicted_center_coordinates.csv'
+        if len(valid_ds.fails) > 0:
+            fail_file = 'bad_data.csv'
+            pd.DataFrame(list(valid_ds.fails), columns=['study_id', 'series_description', 'level']).to_csv(fail_file, index=False)
     logger.info(f'Writing result to {fname}')
     pred_center_df.to_csv(fname, index=False)
     logger.info(f'Wrote output to {fname}')
@@ -622,6 +633,7 @@ def generate_xy_values(cfg):
         dft = pd.read_csv(f'{cfg.directories.relative_directory}/train_coordinates_translated.csv')
 
     res = []
+    fails = []
     for study in tqdm(valid_ds.studies):
         tmp = pred_center_df[pred_center_df.study_id == study.study_id]
         for row in tmp.itertuples():
@@ -633,6 +645,8 @@ def generate_xy_values(cfg):
                     filled_df = fill_coordinates(row, study=study, dft=dft, df=df)
                 res.append(filled_df)
             except Exception as e:
+                for i in range(5):
+                    fails.append((study.study_id, 'Sagittal T2/STIR', i))
                 logger.exception(e)
                 logger.error(f'Error on {row}')
         study.unload()
@@ -640,6 +654,11 @@ def generate_xy_values(cfg):
     fname = model_directory / 'all_predicted_center_coordinates.csv'
     if mode == 'test':
         fname = 'all_predicted_center_coordinates.csv'
+        fails += list(valid_ds.fails)
+
+        if len(fails) > 0:
+            fail_file = 'bad_data.csv'
+            pd.DataFrame(fails, columns=['study_id', 'series_description', 'level']).to_csv(fail_file, index=False)
     logger.info(f'Writing result to {fname}')
     if len(res) > 0:
         temp_filler = pd.concat(res)

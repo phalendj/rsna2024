@@ -98,6 +98,8 @@ class SegmentationCenterDataset(Dataset):
         self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS if condition in conditions], [])
         self.series_description = series_description
 
+        self.failed_lookups = set()
+
         if self.mode == 'train' or self.mode == 'valid':
             series2cond = {'Sagittal T2/STIR': 'spinal',  'Sagittal T1': 'foraminal', 'Axial T2': 'subarticular'}
             self.available_diagnosis = [c for c in self.label_columns if series2cond[self.series_description] in c]
@@ -209,6 +211,8 @@ class SegmentationCenterDataset(Dataset):
                     target['centers'] = centers
 
             else:
+                for j in range(5):
+                    self.fails.add((study.study_id, self.series_description, j))
                 logger.error(f'No {self.series_description} series for {study.study_id}')
                 final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
                 img = np.zeros(final_size)
@@ -223,6 +227,8 @@ class SegmentationCenterDataset(Dataset):
         except Exception as e:
             logger.exception(e)
             logger.error(f'{study.study_id}')
+            for j in range(5):
+                self.fails.add((study.study_id, self.series_description, j))
             final_size = int(self.image_size[0]), int(self.image_size[1]), int(self.channels)
             img = np.zeros(final_size)
             data['series_id'] = -1

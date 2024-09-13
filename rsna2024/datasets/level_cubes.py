@@ -436,6 +436,8 @@ class LevelCubeAreaDataset(Dataset):
             
         self.pred_center_df = pd.read_csv(generated_coordinate_file)  # Should be a file just like any other coordinate file
 
+        self.fails = set()
+
     @property
     def labels(self):
         return self.label_columns
@@ -497,6 +499,7 @@ class LevelCubeAreaDataset(Dataset):
                     series_ids[lev] = row.series_id if isinstance(row.series_id, int) else 0
                     saves.append((lev, row.level, series.series_id, instance_numbers, patch_offset, scaling))
                 except (KeyError, ValueError):
+                    self.fails.append((study.study_id, self.series_description, level_dict[row.level]))
                     pass
 
             target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
@@ -532,6 +535,8 @@ class LevelCubeAreaDataset(Dataset):
             
             
         except Exception as e:
+            for j in range(5):
+                self.fails.add((study.study_id, self.series_description, j))
             target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
             target['patch_scalings'] = torch.tensor(patch_scalings, dtype=torch.float)
             target['series_ids'] = torch.tensor(series_ids, dtype=torch.long)
@@ -583,6 +588,10 @@ class LevelCubeLeftRightAreaDataset(Dataset):
     @property
     def labels(self):
         return self.label_columns
+
+    @property
+    def fails(self):
+        return self.left_dataset.fails | self.right_dataset.fails
 
     def __getitem__(self, idx):
         """
