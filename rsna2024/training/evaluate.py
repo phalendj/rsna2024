@@ -160,7 +160,7 @@ def predict(cfg):
     if mode == 'valid':
         df, dfc, dfd = load_train_files(rsnautils.relative_directory, clean=False)
         if cfg.clean:
-            rsnautils.set_clean(False)
+            rsnautils.set_clean((cfg.clean // 1000)*1000)
             df_clean, __, __ = load_train_files(rsnautils.relative_directory, clean=True)
             df_clean_i = df_clean.set_index('study_id')
         else:
@@ -264,7 +264,7 @@ def generate_instance_numbers(cfg):
     if mode == 'valid':
         df, dfc, dfd = load_train_files(rsnautils.relative_directory, clean=False)
         if cfg.clean:
-            rsnautils.set_clean(False)
+            rsnautils.set_clean((cfg.clean // 1000)*1000)
             df_clean, __, __ = load_train_files(rsnautils.relative_directory, clean=True)
             df_clean_i = df_clean.set_index('study_id')
         else:
@@ -520,7 +520,7 @@ def generate_xy_values(cfg):
     if mode == 'valid':
         df, dfc, dfd = load_train_files(rsnautils.relative_directory, clean=False)
         if cfg.clean:
-            rsnautils.set_clean(False)
+            rsnautils.set_clean((cfg.clean // 1000)*1000)
             df_clean, __, __ = load_train_files(rsnautils.relative_directory, clean=True)
             df_clean_i = df_clean.set_index('study_id')
         else:

@@ -1,0 +1,74 @@
+## This is a designed backup to the original model when the T2/STIR images do not exist.
+seed: 2222
+clean: 2002
+debug: false
+train: False
+result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
+load_directory:  /home/phalendj/code/rsna2024/outputs/2024-09-16/12-03-48 # For reloads
+mode: valid
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+dataset:
+  name: SegmentationCenterDataset
+  image_size:
+  - 512
+  - 512
+  series_description: Sagittal T1
+  conditions:
+  - Spinal Canal Stenosis
+  channels: 30
+  aug_size: 0.20
+  # center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
+  augmentations:
+    prob: 0.75
+    normalize: true
+    hflip: false
+    contrast: true
+    blur: true
+    blur_limit: 9
+    noise: True
+    downscale: True
+    distort: true
+    rotate: False
+    crop:
+      use: false
+      size: 512
+    channel_shuffle: false
+    sharpen: false
+loss:
+  name: InstanceLevelCrossEntropy  
+model:
+  name: tdcnninstance2
+  # model_name: densenet121
+  model_name: tf_efficientnetv2_b2.in1k
+  nclasses: 10
+  num_layers: 4
+  dropout: 0.1
+  
+optimization:
+  optimizer: AdamW
+  learning_rate: 0.0001
+  weight_decay: 0.01
+
+  # scheduler: CosineWithWarmup
+  # n_cycles: 0.475
+
+  scheduler: MultiStepLR
+  milestones: [4, 10]
+  gamma: 0.1
+  
+training:
+  use_folds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  use_amp: true
+  epochs: 15
+  batch_size: 4
+  grad_acc: 1
+  early_stopping: 5
+  workers: 12

@@ -1,0 +1,75 @@
+seed: 2222
+clean: 2002
+debug: false
+train: False
+result: sagittalcenters  # evaluate, instance_numbers, sagittalcenters
+load_directory: /home/phalendj/code/rsna2024/outputs/2024-09-16/16-45-26  # For reloads
+mode: valid
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+dataset:
+  name: SegmentationPredictedCenterDataset
+  image_size:
+  - 512
+  - 512
+  series_description: Sagittal T1
+  conditions:
+  - Spinal Canal Stenosis
+  channels: 15
+  aug_size: 0.10
+  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
+  augmentations:
+    prob: 0.75
+    normalize: true
+    hflip: false
+    contrast: true
+    blur: true
+    blur_limit: 9
+    noise: True
+    downscale: True
+    distort: False
+    rotate: False
+    crop:
+      use: false
+      size: 512
+    channel_shuffle: false
+    sharpen: false
+loss:
+  name: HeatmapLoss
+  patch_size: 512
+model:
+  name: unet
+  encodername: timm-efficientnet-b2
+  model_name: densenet121
+  channels: 15
+  unet_classes: 5
+  nclasses: 15
+  patch_size: 512
+  
+optimization:
+  optimizer: AdamW
+  learning_rate: 0.0002
+  weight_decay: 0.01
+
+  # scheduler: CosineWithWarmup
+  # n_cycles: 0.475
+
+  scheduler: MultiStepLR
+  milestones: [15, 25]
+  gamma: 0.3
+  
+training:
+  use_folds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  use_amp: true
+  epochs: 30  # After this, training loss no longer improves with augs
+  batch_size: 24
+  grad_acc: 1
+  early_stopping: 5
+  workers: 12
