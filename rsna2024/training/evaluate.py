@@ -1,6 +1,6 @@
 import logging
 from tqdm import tqdm
-import math
+import shutil
 from pathlib import Path
 from collections import OrderedDict
 import pandas as pd
@@ -659,6 +659,8 @@ def generate_xy_values(cfg):
         if len(fails) > 0:
             fail_file = 'bad_data.csv'
             pd.DataFrame(fails, columns=['study_id', 'series_description', 'level']).to_csv(fail_file, index=False)
+    else:
+        shutil.copyfile(f'{cfg.directories.relative_directory}/train_coordinates_translated.csv', model_directory / 'train_coordinates_translated.csv')
     logger.info(f'Writing result to {fname}')
     if len(res) > 0:
         temp_filler = pd.concat(res)

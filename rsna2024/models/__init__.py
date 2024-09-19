@@ -1,6 +1,7 @@
 from . import vision2d
 from . import unet
 from . import tdcnn
+from . import lstmcnn
 from . import conv3d
 from . import conv2p1d
 from . import full_level_tdcnn
@@ -25,6 +26,14 @@ def create_model(cfg, fold):
         return tdcnn.TDCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnnlevelside':
         return tdcnn.TDCNNLevelSideModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'lstmcnn':
+        return lstmcnn.LSTMCNNModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'lstmcnninstance':
+        return lstmcnn.LSTMCNNInstanceModel(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'lstmcnnlevel':
+        return lstmcnn.LSTMCNNLevelModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'lstmcnnlevelside':
+        return lstmcnn.LSTMCNNLevelSideModel(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnn2':
         return tdcnn.TDCNNModel2(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnninstance2':
@@ -32,7 +41,7 @@ def create_model(cfg, fold):
     elif cfg.name == 'tdcnnlevel2':
         return tdcnn.TDCNNLevelModel2(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnnlevelside2':
-        return tdcnn.TDCNNLevelSideModel2(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+        return tdcnn.TDCNNLevelSideModel2(model_name=cfg.model_name, img_size=(224, 224), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
 
     elif cfg.name == 'fusedtdcnnlevel':
         model = tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, 

@@ -1,5 +1,5 @@
 seed: 2222
-clean: 6
+clean: 3003
 debug: False
 train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
@@ -12,27 +12,38 @@ directories:
 
 
 dataset:
-  name: LevelCubeAreaDataset
+  
   image_size: [512, 512]
-  # conditions: [Spinal Canal Stenosis, Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing, Left Subarticular Stenosis, Right Subarticular Stenosis]
+  
+  # name: LevelCubeLeftRightAreaDataset
+  # series_description: Sagittal T1
   # conditions: [Left Neural Foraminal Narrowing, Right Neural Foraminal Narrowing]  # Use Clean level 6
-  # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]  # Need clean level 6
+  # channels: 11
+  # subsize: 112
+  # d_side: 50
+  
+  name: LevelCubeAreaDataset
   series_description: Sagittal T2/STIR
-  conditions: [Spinal Canal Stenosis]  # Need clean level 6
+  conditions: [Spinal Canal Stenosis]  # Use Clean level 6
   channels: 11
-  subsize: 224
+  subsize: 112
   d_side: 50
+  
+  # name: LevelCubeLeftRightAreaDataset
+  # series_description: Axial T2
+  # conditions: [Left Subarticular Stenosis, Right Subarticular Stenosis]  # Need clean level 6
+  # channels: 7
+  # subsize: 112
+  # d_side: 30
   aug_size: 0.1
-  # center_file: /home/phalendj/code/rsna2024/outputs/2024-08-16/15-40-19/all_predicted_center_coordinates.csv
-  # center_file: /data/phalendj/kaggle/rsna2024/train_labels_sagittal_t1.csv
-  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
+  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates_pseudo.csv
   augmentations:
     prob: 0.75
     normalize: True  # Helpful with generalization
     hflip: False   # Very hurtful usually - cannot segment properly and everything comes in standard locations
     contrast: True  # Not much change
     blur: True   # This is a major adjustment that helps with training.
-    blur_limit: 9  # Maximum size of kernel for blur limit
+    blur_limit: 9
     noise: True
     downscale: True
     distort: True  # This is a major adjustment that helps with training.  This one does the most to keep training and val in line, however it may prevent training from getting too good, especially for axial
@@ -53,9 +64,16 @@ loss:
   # patch_size: 512
   
 model:
-  name: ResNet2p1D18
-  nclasses: 3  
-  
+  name: tdcnnlevel2
+  # name: tdcnnlevelside2
+  model_name: densenet121
+  # model_name: tf_efficientnetv2_b2.in1k
+  nclasses: 3  # 6 with L/R, 3 for spinal
+  num_layers: 4
+  subsize: 64
+  dropout: 0.1
+  # preload: # /home/phalendj/code/rsna2024/outputs/2024-08-26/12-08-32/
+
 optimization:
   optimizer: AdamW
   learning_rate: 1.0e-4

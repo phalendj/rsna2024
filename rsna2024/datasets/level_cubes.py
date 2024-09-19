@@ -540,6 +540,12 @@ class LevelCubeAreaDataset(Dataset):
             target['patch_offsets'] = torch.tensor(patch_offsets, dtype=torch.float)
             target['patch_scalings'] = torch.tensor(patch_scalings, dtype=torch.float)
             target['series_ids'] = torch.tensor(series_ids, dtype=torch.long)
+
+            if full_targets:
+                centers = np.zeros((5, 2), dtype=float) - 1000
+                slice_classification = np.zeros((5,self.channels), dtype=int)
+                target['centers'] = torch.tensor(centers, dtype=torch.float)
+                target['level_slice_classification'] = torch.as_tensor(slice_classification).long()
             pass
 
         if self.mode == 'test':

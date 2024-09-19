@@ -53,7 +53,7 @@ loss:
   # patch_size: 512
   
 model:
-  name: tdcnnlevel2
+  name: lstmcnnlevel
   # model_name: tf_efficientnetv2_b2.in1k
   # nclasses: 15
   model_name: densenet121
@@ -71,14 +71,14 @@ optimization:
   # n_cycles: 0.475
 
   scheduler: MultiStepLR
-  milestones: [5, 10]
+  milestones: [5, 15]
   gamma: 0.1
 
 training:
   use_folds: [0, 1, 2, 3, 4]
   # use_folds: [2]
   use_amp: True
-  epochs: 15
+  epochs: 20
   batch_size: 12
   grad_acc: 1
   early_stopping: 5

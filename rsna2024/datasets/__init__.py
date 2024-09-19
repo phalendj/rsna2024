@@ -138,6 +138,13 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
         logger.info(f'Load label coordinates from t1 series')
         dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates_spinal_t1.csv')
         clean -= 2000
+    elif 3000 <= clean < 4000:
+        logger.info(f'Load Pseudo Labels and coordinates')
+        df = pd.read_csv(f'{relative_directory}/train_stratums_pseudo.csv')
+        df = df.fillna(-100)  # special signal to crossentropy loss to say do not count
+        df = df.replace(LABEL2ID)
+        dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates_pseudo.csv')
+        clean -= 3000
     else:
         logger.info(f'Load current cleaned label coordinates')
         dfc = pd.read_csv(f'{relative_directory}/train_label_coordinates.csv')
@@ -149,6 +156,12 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
         logger.info('Drop cervical spine image')
         dfd = dfd[dfd.series_id != 3892989905]
         dfc = dfc[dfc.series_id != 3892989905]
+
+        # Drop Flipped Axials
+        # https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification/discussion/534873
+        logger.info('Drop flipped axial image')
+        dfd = dfd[dfd.series_id != 1171893480]
+        dfc = dfc[dfc.series_id != 1171893480]
         
         if clean > 1:
             # # Only take data where all of what we need is present in a single series
