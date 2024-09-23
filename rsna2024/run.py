@@ -36,6 +36,7 @@ def run(cfg: DictConfig) -> None:
                 fname = output_directory / (model.name() + f'_fold{fold}.pth')
                 logger.info(f'Loading Model from {fname}')
                 model.load_state_dict(torch.load(fname, weights_only=True))
+                model.reset_grader()
             training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
     if cfg.result == 'evaluate':

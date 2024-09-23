@@ -1,6 +1,6 @@
 seed: 2222
 clean: 2
-debug: false
+debug: False
 train: True
 result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
 load_directory:   # For reloads
@@ -44,11 +44,12 @@ loss:
 
 model:
   name: magic
-  model_name: densenet121
+  # model_name: densenet121
+  model_name: pvt_v2_b2
   # model_name: tf_efficientnetv2_b2.in1k
   nclasses: 3
-  num_layers: 2
-  bottleneck_layers: 2
+  num_layers: 4
+  bottleneck_layers: 4
   num_points: 5
   dropout: 0.1
   

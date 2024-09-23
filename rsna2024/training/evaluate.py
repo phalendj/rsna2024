@@ -460,7 +460,7 @@ def detect_single_levels(OUT, cut = 0.9):
     return pts
 
 
-def fill_coordinates(row, study, dft, df):
+def fill_coordinates(row, study, dft, df, rank=0):
     # assert row.study_id == study.study_id
     series = study.get_series(row.series_id)
     stack = series.get_stack(row.instance_number)
@@ -488,12 +488,12 @@ def fill_coordinates(row, study, dft, df):
             projected_world_x = world_x + x_offset
             projected_world_y = world_y + y_offset
             projected_world_z = world_z + z_offset
-            target_stack, target_series, dist = study.find_closest_stack_and_series(series_description=CONDITION_2_SERIES_DESC[target_condition], world_x=projected_world_x, world_y=projected_world_y, world_z=projected_world_z, required_in=True)
-            if target_stack is not None:
+            results = study.rank_stack_and_series(series_description=CONDITION_2_SERIES_DESC[target_condition], world_x=projected_world_x, world_y=projected_world_y, world_z=projected_world_z, required_in=True)
+            if len(results) > 0:
+                dist, target_stack, target_series = results[min(len(results)-1, rank)]
                 k, proj_x, proj_y = target_stack.get_pixel_from_world(world_x=projected_world_x, world_y=projected_world_y, world_z=projected_world_z)
                 inum, px, py = target_stack.instance_numbers[k], proj_x, proj_y
                 res.append({'study_id': row.study_id, 'series_id': target_series.series_id, 'instance_number': inum, 'condition': target_condition, 'level': row.level, 'x': px, 'y': py})
-            
             
     return pd.DataFrame(res)
 
@@ -632,7 +632,9 @@ def generate_xy_values(cfg):
     else:
         dft = pd.read_csv(f'{cfg.directories.relative_directory}/train_coordinates_translated.csv')
 
-    res = []
+    res0 = []
+    res1 = []
+    res2 = []
     fails = []
     for study in tqdm(valid_ds.studies):
         tmp = pred_center_df[pred_center_df.study_id == study.study_id]
@@ -640,10 +642,22 @@ def generate_xy_values(cfg):
             try:
                 study.load()
                 if mode == 'test':
-                    filled_df = fill_coordinates(row, study=study, dft=dft, df=None)
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=None, rank=0)
                 else:
-                    filled_df = fill_coordinates(row, study=study, dft=dft, df=df)
-                res.append(filled_df)
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=df, rank=0)
+                res0.append(filled_df)
+
+                if mode == 'test':
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=None, rank=1)
+                else:
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=df, rank=1)
+                res1.append(filled_df)
+
+                if mode == 'test':
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=None, rank=2)
+                else:
+                    filled_df = fill_coordinates(row, study=study, dft=dft, df=df, rank=2)
+                res2.append(filled_df)
             except Exception as e:
                 level_dict = {lev: i for i, lev in enumerate(LEVELS)}
                 fails.append((study.study_id, 'Sagittal T2/STIR', level_dict[row.level]))
@@ -662,13 +676,29 @@ def generate_xy_values(cfg):
     else:
         shutil.copyfile(f'{cfg.directories.relative_directory}/train_coordinates_translated.csv', model_directory / 'train_coordinates_translated.csv')
     logger.info(f'Writing result to {fname}')
-    if len(res) > 0:
-        temp_filler = pd.concat(res)
+    if len(res0) > 0:
+        temp_filler = pd.concat(res0)
         full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
         full_pred_center.to_csv(fname, index=False)
     else:
         print('No results')
         pred_center_df.to_csv(fname, index=False)
+
+    if len(res1) > 0:
+        temp_filler = pd.concat(res1)
+        full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
+        full_pred_center.to_csv(fname.replace('.csv', '1.csv'), index=False)
+    else:
+        print('No results')
+        pred_center_df.to_csv(fname.replace('.csv', '1.csv'), index=False)
+
+    if len(res2) > 0:
+        temp_filler = pd.concat(res2)
+        full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
+        full_pred_center.to_csv(fname.replace('.csv', '2.csv'), index=False)
+    else:
+        print('No results')
+        pred_center_df.to_csv(fname.replace('.csv', '2.csv'), index=False)
 
     logger.info(f'Wrote output to {fname}')
         

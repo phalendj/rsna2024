@@ -5,8 +5,11 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils as rsnautils
 
+try:
+    from .. import utils as rsnautils
+except ImportError:
+    import utils as rsnautils
 
 from . import unet
 

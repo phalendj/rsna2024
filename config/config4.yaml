@@ -53,7 +53,7 @@ loss:
   # patch_size: 512
   
 model:
-  name: lstmcnnlevel
+  name: tdcnnlevel
   # model_name: tf_efficientnetv2_b2.in1k
   # nclasses: 15
   model_name: densenet121

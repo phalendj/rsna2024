@@ -80,6 +80,10 @@ def train_one_fold(model, cfg, fold: int):
     df_train = df.loc[df.fold != fold]
     df_valid = df.loc[df.fold == fold]
 
+    if cfg.debug:
+        df_train = df_train.iloc[:cfg.training.batch_size*2]
+        df_valid = df_valid.iloc[:cfg.training.batch_size*2]
+
     logger.info(f'Fold {fold}: Length of Training {len(df_train)}, Length of Valid {len(df_valid)}')
 
     train_ds = dsfactory.create_dataset(study_ids=df_train.study_id.unique(), mode='train', cfg=cfg.dataset)
@@ -170,6 +174,9 @@ def train_one_fold(model, cfg, fold: int):
                             loss = loss / GRAD_ACC
 
                 if not math.isfinite(loss):
+                    print(y['labels'])
+                    print(t['labels'])
+
                     logger.info(f"Loss is {loss}, stopping training")
                     return
 
@@ -207,10 +214,6 @@ def train_one_fold(model, cfg, fold: int):
                             y = model(x)
                             loss = criterion(y, t)
                             
-                            total_loss += loss.item()
-                            if GRAD_ACC > 1:
-                                loss = loss / GRAD_ACC
-
                     elif isinstance(x, tuple) or isinstance(x, list):
                         x1, x2, x3 = x
                         x1 = x1.to(device)
@@ -219,13 +222,22 @@ def train_one_fold(model, cfg, fold: int):
                         with autocast:
                             y = model(x1, x2, x3)
                             loss = criterion(y, t)
-                            total_loss += loss.item()   
                     else:
                         x = x.to(device)
                         with autocast:
                             y = model(x)
                             loss = criterion(y, t)
-                            total_loss += loss.item()   
+                    
+                    sloss = loss.item()
+
+                    if not math.isfinite(sloss):
+                        print(y['labels'])
+                        print(t['labels'])
+
+                        logger.info(f"Loss is {sloss}, stopping training")
+                        return
+
+                    total_loss += sloss
 
         val_loss = total_loss/len(valid_dl)
         logger.info(f'val_loss:{val_loss:.6f}')

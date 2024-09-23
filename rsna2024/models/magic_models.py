@@ -4,13 +4,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 import logging
 
 import timm
-
-
-import utils as rsnautils
+try:
+    from .. import utils as rsnautils
+except ImportError:
+    import utils as rsnautils
 
 from .tdcnn import PositionalEncoding
 
@@ -55,9 +57,10 @@ class DecoderBlock(nn.Module):
         in_channels,
         skip_channels,
         out_channels,
+        scaling=2,
         use_batchnorm=True,
-        attention_type=None,
     ):
+        self.scaling = scaling
         super().__init__()
         self.conv1 = Conv2dReLU(
             in_channels + skip_channels,
@@ -77,7 +80,7 @@ class DecoderBlock(nn.Module):
         self.attention2 = nn.Identity(in_channels=out_channels)
 
     def forward(self, x, skip=None):
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = F.interpolate(x, scale_factor=self.scaling, mode="nearest")
         if skip is not None:
             x = torch.cat([x, skip], dim=1)
             x = self.attention1(x)
@@ -90,12 +93,13 @@ class FlattenerUnetDecoder(nn.Module):
     def __init__(
         self,
         encoder_channels,
+        skip_channels,
         decoder_channels,
+        scalings
     ):
         super().__init__()
-        
-        skip_channels = encoder_channels[:-1] + [0]
-        blocks = [DecoderBlock(in_ch, skip_ch, out_ch) for in_ch, skip_ch, out_ch in zip(encoder_channels, skip_channels, decoder_channels)]
+        # [print(in_ch, skip_ch, out_ch, scl) for in_ch, skip_ch, out_ch, scl in zip(encoder_channels, skip_channels, decoder_channels, scalings)]
+        blocks = [DecoderBlock(in_ch, skip_ch, out_ch, scl) for in_ch, skip_ch, out_ch, scl in zip(encoder_channels, skip_channels, decoder_channels, scalings)]
         self.blocks = nn.ModuleList(blocks)
         
         self.pool = nn.AdaptiveAvgPool1d(output_size=1)
@@ -119,9 +123,9 @@ class FlattenerUnetDecoder(nn.Module):
 
 
 class InstancePredictionHead(nn.Module):
-    def __init__(self, d_model, num_layers, dropout, n_classes):
+    def __init__(self, d_model, num_layers, dropout, output_size, n_classes):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.pool = nn.AdaptiveAvgPool2d(output_size=output_size)
         self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=dropout)
         layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
@@ -160,40 +164,60 @@ class MagicModel(nn.Module):
         self.encoder_dim = [x.shape[1] for x in X]
         logger.info(f'Encoder dimension for {model_name} {self.encoder_dim}')
 
-        encoder_channels = list(reversed(self.encoder_dim[:-1]))
-        encoder_channels.append(encoder_channels[-1])
+        # encoder_channels = list(reversed(self.encoder_dim[:-1]))
+        encoder_channels =  {'densenet121': [1024,512,256,64],
+                             'pvt_v2_b2': [512,320,128,64],
+                             'tf_efficientnetv2_b2.in1k': [208, 120, 56, 32, 16]}[model_name]
+        # encoder_channels.append(encoder_channels[-1])
 
-        decoder_channels = []
-        for i in range(1, len(encoder_channels)):
-            if len(decoder_channels) == 0 and encoder_channels[i] == encoder_channels[i-1]:
-                pass
-            else:
-                decoder_channels.append(encoder_channels[i])
+        skip_channels =  {'densenet121': [1024,512,256,64],
+                          'pvt_v2_b2': [320,128,64, 0],
+                          'tf_efficientnetv2_b2.in1k': [120, 56, 32, 16, 0]}[model_name]
+        
+        scalings =  {'densenet121': [2,2,2,2,2],
+                     'pvt_v2_b2': [2,2,2,4],
+                     'tf_efficientnetv2_b2.in1k': [2,2,2,2,2]}[model_name]
+                     
+
+        decoder_channels = {'densenet121': [512, 256, 64, 64],
+                            'pvt_v2_b2': [320, 128, 64, 64],
+                            'tf_efficientnetv2_b2.in1k': [120, 56, 32, 16]
+                            }[model_name]
 
         while len(decoder_channels) < len(encoder_channels):
             decoder_channels.append(decoder_channels[-1])
 
-        logger.info(f'Decoder channels {decoder_channels}')
+        logger.info(f'Decoder channels {decoder_channels}, {encoder_channels}')
 
         d_model = self.encoder_dim[-1]
         layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
         self.encoder = nn.TransformerEncoder(layer, num_layers=bottleneck_layers)
 
-        self.instance_prediction = InstancePredictionHead(d_model=d_model, num_layers=instance_layers, dropout=dropout, n_classes=num_points*2)
+        output_size = int(np.sqrt(1024 // d_model))
+        logger.info(f'Adaptive pooling size: {output_size} for d_model = {d_model}')
 
-        self.unet_decoder = FlattenerUnetDecoder(encoder_channels=encoder_channels, decoder_channels=decoder_channels)
+        self.instance_prediction = InstancePredictionHead(d_model=d_model*output_size*2, num_layers=instance_layers, dropout=dropout, output_size=output_size, n_classes=num_points*2)
 
+        self.unet_decoder = FlattenerUnetDecoder(encoder_channels=encoder_channels, skip_channels=skip_channels, decoder_channels=decoder_channels, scalings=scalings)
+
+        self.num_points = num_points
         final_channels = decoder_channels[-1]
         self.heatmap_mask = nn.Conv2d(in_channels=final_channels, kernel_size=1, out_channels=num_points)
         self.grade_mask = nn.Conv2d(in_channels=final_channels, kernel_size=1, out_channels=final_channels)
 
-        self.grader = nn.Sequential(
-            nn.Linear(final_channels, final_channels),
-            nn.BatchNorm1d(num_points),
-            nn.ReLU(inplace=True),
-            nn.Linear(final_channels, n_classes),
-        )
-
+        self.grader = nn.Linear(final_channels, n_classes)
+        # self.grader = nn.Sequential(
+        #     nn.Linear(final_channels, final_channels),
+        #     nn.BatchNorm1d(num_points),
+        #     nn.ReLU(),
+        #     nn.Linear(final_channels, n_classes),
+        # )
+        
+    def reset_grader(self):
+        pass
+        # self.grader[0].reset_parameters()
+        # self.grader[-1].reset_parameters()
+   
     def name(self):
         return f'magic_{self.model_name}'
 
@@ -218,10 +242,18 @@ class MagicModel(nn.Module):
         heatmap = self.heatmap_mask(xt)
         grades = self.grade_mask(xt)
 
-        to_grade = (heatmap.unsqueeze(2)*grades.unsqueeze(1)).sum(dim=(3,4))
-        pred = self.grader(to_grade)
-
+        # Somehow this fails in mixed precision  It could be an overflow in float16 type
+        to_grade = (heatmap.unsqueeze(2)*grades.unsqueeze(1)).mean(dim=(3,4)) # .type(heatmap.dtype)
+        if np.isnan(to_grade.mean().item()):
+            print('Grade Fail', to_grade.shape, to_grade.mean())
+        pred = self.grader(to_grade).flatten(1)
+        if np.isnan(pred.mean().item()):
+            print('Pred Fail', pred.shape, pred.mean())
         instance_predictions = self.instance_prediction(x)
+
+        min_values = heatmap.view(-1,self.num_points,H*W).min(-1)[0].view(-1,self.num_points,1,1) # Bug, I've been MinMaxScaling with the wrong values
+        max_values = heatmap.view(-1,self.num_points,H*W).max(-1)[0].view(-1,self.num_points,1,1)
+        heatmap = (heatmap - min_values)/(max_values - min_values)
 
         return {'instance_labels': instance_predictions, 'labels': pred, 'masks': heatmap}
 

@@ -533,7 +533,24 @@ class OrientedSeries(object):
     def get_thick_patch(self, instance_number, slice_thickness, x, y, patch_size, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> np.array:
         self.load()
         return self.get_stack(instance_number).get_thick_patch(instance_number=instance_number, slice_thickness=slice_thickness, x=x, y=y, patch_size=patch_size, boundary_instance=boundary_instance, center=center, center_patch=center_patch)
-    
+
+    def rank_stack(self, world_x: float, world_y: float, world_z: float, required_in: bool) -> list[tuple[float, OrientedStack]]:
+        """
+        Given world coordinates, will find the instance number that has the coordinates closest to the center of the image.  Also will return the distance in case we are comparing different series
+        """
+        self.load()
+        results = []
+        for stack in self.dicom_stacks:
+            try:
+                if not required_in or stack.contains_world_point(world_x, world_y, world_z):
+                    d = stack.distance_to_center(world_x, world_y, world_z)
+                    results.append((d, stack))
+            except np.linalg.LinAlgError as e:
+                logger.error(f'{stack} {e}')
+                raise e
+        
+        return results
+
     def find_closest_stack(self, world_x: float, world_y: float, world_z: float, required_in: bool) -> tuple[OrientedStack|None, float]:
         """
         Given world coordinates, will find the instance number that has the coordinates closest to the center of the image.  Also will return the distance in case we are comparing different series
@@ -602,6 +619,15 @@ class OrientedStudy(object):
     def set_coordinate_df(self, coordinate_df):
         if coordinate_df is not None:
             self.coordinate_df = coordinate_df[coordinate_df.study_id == self.study_id]
+
+    def rank_stack_and_series(self, series_description: str, world_x: float, world_y: float, world_z: float, required_in: bool) -> list[tuple[float, OrientedStack, OrientedSeries]]:
+        results = []
+        for series_id, series in self.series_dict.items():
+            if series.series_description == series_description:
+                stack_results = series.rank_stack(world_x=world_x, world_y=world_y, world_z=world_z, required_in=required_in)
+                for dist, stack in stack_results:
+                    results.append((dist, stack, series)) 
+        return results
 
     def find_closest_stack_and_series(self, series_description: str, world_x: float, world_y: float, world_z: float, required_in: bool) -> tuple[OrientedStack, OrientedSeries, float]:
         best = 1.e10

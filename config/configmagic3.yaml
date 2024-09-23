@@ -1,9 +1,9 @@
 seed: 2222
 clean: 6
-debug: false
+debug: False
 train: True
-result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
-load_directory:   # For reloads
+result: evaluate  # evaluate, instance_numbers, sagittalcenters
+load_directory: /home/phalendj/code/rsna2024/outputs/2024-09-23/13-33-15/ # /home/phalendj/code/rsna2024/outputs/2024-09-23/10-35-04/ # /home/phalendj/code/rsna2024/outputs/2024-09-20/18-15-46/ # For reloads
 mode: valid
 
 directories:
@@ -44,11 +44,12 @@ loss:
 
 model:
   name: magic
-  model_name: densenet121
-  # model_name: tf_efficientnetv2_b2.in1k
+  # model_name: densenet121
+  # model_name: pvt_v2_b2
+  model_name: tf_efficientnetv2_b2.in1k
   nclasses: 3
-  num_layers: 2
-  bottleneck_layers: 2
+  num_layers: 4
+  bottleneck_layers: 4
   num_points: 5
   dropout: 0.1
   
@@ -69,7 +70,7 @@ training:
   # use_folds: [2]
   use_amp: True
   epochs: 15
-  batch_size: 6
+  batch_size: 8
   grad_acc: 1
   early_stopping: 5
   workers: 12
