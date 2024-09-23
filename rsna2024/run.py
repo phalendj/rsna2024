@@ -1,7 +1,9 @@
 import hydra
 import logging
 import datetime
+import torch
 from omegaconf import DictConfig
+from pathlib import Path
 
 try:
     from .utils import set_directories, set_random_seed, set_clean, set_debug, set_preload
@@ -29,6 +31,11 @@ def run(cfg: DictConfig) -> None:
         for fold in cfg.training.use_folds:
             logger.info(f'Run Fold {fold}')
             model = models.create_model(cfg=cfg.model, fold=fold)
+            if cfg.load_directory is not None:
+                output_directory = Path(cfg.load_directory)
+                fname = output_directory / (model.name() + f'_fold{fold}.pth')
+                logger.info(f'Loading Model from {fname}')
+                model.load_state_dict(torch.load(fname, weights_only=True))
             training.train_one_fold(model=model, cfg=cfg, fold=fold)
 
     if cfg.result == 'evaluate':

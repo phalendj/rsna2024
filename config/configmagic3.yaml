@@ -1,0 +1,75 @@
+seed: 2222
+clean: 6
+debug: false
+train: True
+result: instance_numbers  # evaluate, instance_numbers, sagittalcenters
+load_directory:   # For reloads
+mode: valid
+
+directories:
+  relative_directory: /data/phalendj/kaggle/rsna2024
+  image_directory: train_images
+dataset:
+  name: SegmentationPredictedCenterDataset
+  image_size:
+  - 512
+  - 512
+  series_description: Sagittal T2/STIR
+  conditions:
+  - Spinal Canal Stenosis
+  channels: 15
+  aug_size: 0.10
+  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
+  augmentations:
+    prob: 0.75
+    normalize: true
+    hflip: false
+    contrast: true
+    blur: true
+    blur_limit: 9
+    noise: True
+    downscale: True
+    distort: False
+    rotate: False
+    crop:
+      use: false
+      size: 512
+    channel_shuffle: false
+    sharpen: false
+loss:
+  # name: InstanceLevelCrossEntropy  
+  # name: HeatmapLoss
+  # patch_size: 512
+  name: WeightedCrossEntropy
+
+model:
+  name: magic
+  model_name: densenet121
+  # model_name: tf_efficientnetv2_b2.in1k
+  nclasses: 3
+  num_layers: 2
+  bottleneck_layers: 2
+  num_points: 5
+  dropout: 0.1
+  
+optimization:
+  optimizer: AdamW
+  learning_rate: 1.0e-4
+  weight_decay: 1.e-2
+
+  # scheduler: CosineWithWarmup
+  # n_cycles: 0.475
+
+  scheduler: MultiStepLR
+  milestones: [5, 10]
+  gamma: 0.1
+
+training:
+  use_folds: [0, 1, 2, 3, 4]
+  # use_folds: [2]
+  use_amp: True
+  epochs: 15
+  batch_size: 6
+  grad_acc: 1
+  early_stopping: 5
+  workers: 12

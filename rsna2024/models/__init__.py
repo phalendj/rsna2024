@@ -5,10 +5,13 @@ from . import lstmcnn
 from . import conv3d
 from . import conv2p1d
 from . import full_level_tdcnn
+from . import magic_models
 
 def create_model(cfg, fold):
     if cfg.name == 'vision2d':
         return vision2d.RSNA24Model(model_name=cfg.model_name, in_c=cfg.channels, n_classes=cfg.nclasses)
+    elif cfg.name == 'magic':
+        return magic_models.MagicModel(model_name=cfg.model_name, n_classes=cfg.nclasses, num_points=cfg.num_points, dropout=cfg.dropout, bottleneck_layers=cfg.bottleneck_layers, instance_layers=cfg.num_layers)
     elif cfg.name == 'unet':
         return unet.UNet(in_channels=cfg.channels, out_classes=cfg.unet_classes, patch_size=cfg.patch_size, encoder_name=cfg.encodername, 
                          classifier_name=cfg.model_name, classifier_classes=cfg.nclasses)
