@@ -628,3 +628,92 @@ class LevelCubeLeftRightAreaDataset(Dataset):
         
     def __len__(self):
         return len(self.left_dataset)
+
+
+class MasterLevelCubeAreaDataset(Dataset):
+    def __init__(self, study_ids, generated_coordinate_file: str, mode='train', transform: callable = None, load_studies: list[OrientedStudy]|None = None):
+        self.spinal_dataset = LevelCubeAreaDataset(study_ids=study_ids, 
+                                                   patch_size=224, 
+                                                   channels=11, 
+                                                   d_side=50.0, 
+                                                   series_description='Sagittal T2/STIR', 
+                                                   condition='Spinal Canal Stenosis', 
+                                                   generated_coordinate_file=generated_coordinate_file, 
+                                                   transform=transform, 
+                                                   mode=mode,
+                                                   load_studies=load_studies)
+        
+        self.foraminal_dataset = LevelCubeLeftRightAreaDataset(study_ids=study_ids, 
+                                                   patch_size=224, 
+                                                   channels=11, 
+                                                   d_side=50.0, 
+                                                   series_description='Sagittal T1', 
+                                                   left_condition='Left Neural Foraminal Narrowing', 
+                                                   right_condition='Right Neural Foraminal Narrowing', 
+                                                   generated_coordinate_file=generated_coordinate_file, 
+                                                   transform=transform, 
+                                                   mode=mode,
+                                                   load_studies=self.spinal_dataset.studies)
+        
+        self.subarticular_dataset = LevelCubeLeftRightAreaDataset(study_ids=study_ids, 
+                                                   patch_size=224, 
+                                                   channels=7, 
+                                                   d_side=40.0, 
+                                                   series_description='Axial T2', 
+                                                   left_condition='Left Subarticular Stenosis', 
+                                                   right_condition='Right Subarticular Stenosis', 
+                                                   generated_coordinate_file=generated_coordinate_file, 
+                                                   transform=transform, 
+                                                   mode=mode,
+                                                   load_studies=self.spinal_dataset.studies)
+        
+        self.label_columns = sum([[create_column(condition, level=level) for level in LEVELS] for condition in CONDITIONS], [])
+
+
+    @property
+    def mode(self):
+        return self.spinal_dataset.mode
+    
+    @property
+    def labels(self):
+        return self.label_columns
+    
+    @property
+    def fails(self):
+        return self.spinal_dataset.fails | self.foraminal_dataset.fails | self.subarticular_dataset.fails
+
+    def __getitem__(self, idx):
+        """
+        Will output a tensor of size LEVELS, SIDE, CHANNELS, PATCH_SIZE, PATCH_SIZE
+        """
+        study = self.spinal_dataset.studies[idx]
+        full_targets = self.mode == 'train' or self.mode == 'valid'
+        target = {'study_id': study.study_id}
+        if full_targets:
+            label = np.int64([study.labels[col] for col in self.label_columns])
+            target['labels'] = torch.tensor(label)
+        spinal_x, spinal_targets = self.spinal_dataset[idx]
+        foraminal_x, foraminal_targets = self.foraminal_dataset[idx]
+        subarticular_x, subarticular_targets = self.subarticular_dataset[idx]
+        
+        data = {}
+        data['Sagittal T2/STIR Patch'] = spinal_x
+        data['Sagittal T1 Patch'] = foraminal_x
+        data['Axial T2 Patch'] = subarticular_x
+
+        for key in spinal_targets.keys():
+            if key not in ['study_id', 'labels']:
+                target[f'Sagittal T2/STIR {key}'] = spinal_targets[key]
+
+        for key in foraminal_targets.keys():
+            if key not in ['study_id', 'labels']:
+                target[f'Sagittal T1 {key}'] = foraminal_targets[key]
+
+        for key in subarticular_targets.keys():
+            if key not in ['study_id', 'labels']:
+                target[f'Axial T2 {key}'] = subarticular_targets[key]
+
+        return data, target
+        
+    def __len__(self):
+        return len(self.spinal_dataset)

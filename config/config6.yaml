@@ -1,5 +1,5 @@
 seed: 2222
-clean: 6
+clean: 7
 debug: False
 train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
@@ -51,8 +51,9 @@ loss:
   
 model:
   name: tdcnnlevelside2
-  model_name: maxvit_tiny_tf_224.in1k
+  # model_name: maxvit_tiny_tf_224.in1k
   # model_name: tf_efficientnetv2_b2.in1k
+  model_name: densenet121
   nclasses: 3  # 6 with L/R, 3 for spinal
   num_layers: 4
   subsize: 64

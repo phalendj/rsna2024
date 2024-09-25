@@ -14,7 +14,7 @@ def create_loss(cfg, device):
     elif cfg.name == 'SevereLoss':
         return severe.SevereLoss(device=device, temperature=0.0)
     elif cfg.name == 'HeatmapLoss':
-        return heatmap.HeatmapLoss(device=device, patch_size=cfg.patch_size)
+        return heatmap.HeatmapLoss(device=device, patch_size=cfg.patch_size, H_scale=cfg.h_scale)
     elif cfg.name == 'MixedLoss':
         return mixedloss.MixedLoss(device=device, center_change=cfg.center_change, width_change=cfg.width_change, patch_size=cfg.patch_size)
     else:

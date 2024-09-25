@@ -102,6 +102,14 @@ def create_dataset(study_ids, mode, cfg):
                                                     mode=mode, 
                                                     transform=transform)
     
+    if cfg.name == 'MasterLevelCubeAreaDataset':
+        cfg_aug = cfg.augmentations
+        transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)
+        return level_cubes.MasterLevelCubeAreaDataset(study_ids=study_ids,
+                                                    generated_coordinate_file=cfg.center_file,
+                                                    mode=mode, 
+                                                    transform=transform)
+    
     if cfg.name == 'AllLevelCubeDataset':
         cfg_aug = cfg.augmentations
         transform = aug.get_transform(train=(mode=='train'), cfg=cfg_aug)

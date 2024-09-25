@@ -475,6 +475,14 @@ class TDCNNLevelModel2(TDCNNModel2):
         # y.shape = B*L, feature dim (1024 or something like that)
         y = y.reshape(B, L, -1)  # Now B, Level, feature dim
         return y
+    
+    def level_forward_vision_features(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 2).unsqueeze(1)  # Now first index is is B0L0I0, ... , dim = (B*L*I, 1, H, W)
+        y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
+        y = self.pool(y).flatten(1)  # B*L*I, D
+        y = y.reshape(B, L, I, -1)
+        return y
 
     def name(self):
         return f'td_cnn2_level_{self.model_name}'
@@ -521,6 +529,14 @@ class TDCNNLevelSideModel2(TDCNNModel2):
         y = y.reshape(B, L, S, -1)  # Now B, Level, feature dim
         return y
 
+    def level_forward_vision_features(self, x):
+        B, L, S, I, H, W = x.shape
+        x = x.flatten(0, 3).unsqueeze(1)  # Now first index is is B0L0S0I0, ... , dim = (B*L*S*I, 1, H, W)
+        y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
+        y = self.pool(y).flatten(1)  # B*L*S*I, D
+        y = y.reshape(B, L, S, I, -1)
+        return y
+
     def name(self):
         return f'td_cnn2_level_side_{self.model_name}'
 
@@ -542,4 +558,140 @@ class TDCNNLevelSideModel2(TDCNNModel2):
             key = [k for k in X.keys() if 'Patch' in k][0]
             X = X[key]
         y = self.level_forward(X)
+        return {'labels': y}
+    
+
+
+
+class TDCNNAllLevelSideModel2(nn.Module):
+    """First pass does an extra classifier head"""
+    def __init__(self, model_name: str, img_size: tuple[int, int], 
+                 hidden_dim: int,
+                 in_c: int = 1, n_classes: int = 3, num_layers: int = 4, dropout: float = 0.1):
+        super().__init__()
+        self.spinal_model = TDCNNLevelModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
+        self.foraminal_model = TDCNNLevelSideModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
+        self.subarticular_model = TDCNNLevelSideModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
+
+        self.classifier = nn.Sequential(nn.Dropout(dropout), 
+                                        nn.LazyLinear(hidden_dim),
+                                        nn.LazyBatchNorm1d(),
+                                        nn.ReLU(inplace=True),
+                                        nn.LazyLinear(n_classes*5)
+                                        )
+
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / 'Spinal' 
+        self.spinal_model.load(fname, fold)
+        fname = Path(load_dir) / 'Foraminal' 
+        self.foraminal_model.load(fname, fold)
+        fname = Path(load_dir) / 'Subarticular' 
+        self.subarticular_model.load(fname, fold)
+
+        self.freeze_vision()
+
+    def freeze_vision(self):
+        self.spinal_model.freeze_vision()
+        self.foraminal_model.freeze_vision()
+        self.subarticular_model.freeze_vision()
+
+    def unfreeze_vision(self):
+        self.spinal_model.unfreeze_vision()
+        self.foraminal_model.unfreeze_vision()
+        self.subarticular_model.unfreeze_vision()
+
+    def name(self):
+        return f'td_cnn2_all_level_side_{self.spinal_model.model_name}'
+
+    def forward(self, X):
+        X1 = X['Sagittal T2/STIR Patch']
+        B, L, C, H, W = X1.shape
+        X1 = self.spinal_model.level_forward_features(X1).unsqueeze(2)
+
+        X2 = X['Sagittal T1 Patch']
+        X2 = self.foraminal_model.level_forward_features(X2)
+
+        X3 = X['Axial T2 Patch']
+        X3 = self.subarticular_model.level_forward_features(X3)
+
+        X4 = torch.concat([X1, X2, X3], dim=2)  # B, L, 5, D
+
+        X4 = X4.flatten(2)
+        y = self.classifier(X4)  # B, L, 5*n_classes
+        y = y.reshape(B, L, 5, 3)
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+
+        return {'labels': y}
+    
+
+
+class TDCNNAllXLevelSideModel2(nn.Module):
+    """Does Transformer on vision features from other models"""
+    def __init__(self, model_name: str, img_size: tuple[int, int], 
+                 hidden_dim: int,
+                 in_c: int = 1, n_classes: int = 3, num_layers: int = 4, dropout: float = 0.1):
+        super().__init__()
+        self.spinal_model = TDCNNLevelModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
+        self.foraminal_model = TDCNNLevelSideModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
+        self.subarticular_model = TDCNNLevelSideModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
+
+        d_model = 1024
+        self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=dropout)
+        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
+        self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
+        
+        self.classifier = nn.Sequential(nn.Dropout(dropout),
+                                        nn.LazyLinear(hidden_dim),
+                                        nn.LazyBatchNorm1d(),
+                                        nn.ReLU(inplace=True),
+                                        nn.LazyLinear(n_classes*5)
+                                        )
+
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / 'Spinal' 
+        self.spinal_model.load(fname, fold)
+        fname = Path(load_dir) / 'Foraminal' 
+        self.foraminal_model.load(fname, fold)
+        fname = Path(load_dir) / 'Subarticular' 
+        self.subarticular_model.load(fname, fold)
+
+        self.freeze_vision()
+
+    def freeze_vision(self):
+        self.spinal_model.freeze_vision()
+        self.foraminal_model.freeze_vision()
+        self.subarticular_model.freeze_vision()
+
+    def unfreeze_vision(self):
+        self.spinal_model.unfreeze_vision()
+        self.foraminal_model.unfreeze_vision()
+        self.subarticular_model.unfreeze_vision()
+
+    def name(self):
+        return f'td_cnn2_allx_level_side_{self.spinal_model.model_name}'
+
+    def forward(self, X):
+        X1 = X['Sagittal T2/STIR Patch']
+        B, L, C, H, W = X1.shape
+        X1 = self.spinal_model.level_forward_vision_features(X1)  # B, L, I1, D
+
+        X2 = X['Sagittal T1 Patch']
+        X2 = self.foraminal_model.level_forward_vision_features(X2) # B, L, S, I2, D
+
+        X3 = X['Axial T2 Patch']
+        X3 = self.subarticular_model.level_forward_vision_features(X3)  # B, L, S, I3, D
+
+        X4 = torch.concat([X1, X2.flatten(2,3), X3.flatten(2,3)], dim=2).flatten(0,1)  # B*L, I1+2*I2+2*I3, D
+
+        X4 = self.pos_encoding(X4)
+        X4 = self.encoder(X4)  # B*L, I1+2*I2+2*I3, D
+        y1 = F.adaptive_avg_pool1d(X4.transpose(-1, -2), 1).squeeze(-1).reshape(B, L, -1)  # B, L, 1024
+        y2 = F.adaptive_max_pool1d(X4.transpose(-1, -2), 1).squeeze(-1).reshape(B, L, -1)  # B, L, 1024
+        y = torch.concatenate([y1, y2], dim=2)
+        y = self.classifier(y)  # B, L, 5*n_classes
+        y = y.reshape(B, L, 5, 3)
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+
         return {'labels': y}

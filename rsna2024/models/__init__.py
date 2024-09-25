@@ -45,6 +45,19 @@ def create_model(cfg, fold):
         return tdcnn.TDCNNLevelModel2(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnnlevelside2':
         return tdcnn.TDCNNLevelSideModel2(model_name=cfg.model_name, img_size=(224, 224), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    
+    elif cfg.name == 'tdcnnalllevelside2':
+        model = tdcnn.TDCNNAllLevelSideModel2(model_name=cfg.model_name, img_size=(224, 224), hidden_dim=cfg.hidden_dim,
+                                             in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+        model.load(cfg.preload, fold=fold)
+        return model
+
+    elif cfg.name == 'tdcnnallxlevelside2':
+        model = tdcnn.TDCNNAllXLevelSideModel2(model_name=cfg.model_name, img_size=(224, 224), hidden_dim=cfg.hidden_dim,
+                                             in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+        model.load(cfg.preload, fold=fold)
+        return model
+
 
     elif cfg.name == 'fusedtdcnnlevel':
         model = tdcnn.FusedTDCNNLevelModel(model_name=cfg.model_name, 

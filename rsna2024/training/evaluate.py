@@ -684,21 +684,21 @@ def generate_xy_values(cfg):
         print('No results')
         pred_center_df.to_csv(fname, index=False)
 
-    if len(res1) > 0:
-        temp_filler = pd.concat(res1)
-        full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
-        full_pred_center.to_csv(fname.replace('.csv', '1.csv'), index=False)
-    else:
-        print('No results')
-        pred_center_df.to_csv(fname.replace('.csv', '1.csv'), index=False)
+    # if len(res1) > 0:
+    #     temp_filler = pd.concat(res1)
+    #     full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
+    #     full_pred_center.to_csv(fname.replace('.csv', '1.csv'), index=False)
+    # else:
+    #     print('No results')
+    #     pred_center_df.to_csv(fname.replace('.csv', '1.csv'), index=False)
 
-    if len(res2) > 0:
-        temp_filler = pd.concat(res2)
-        full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
-        full_pred_center.to_csv(fname.replace('.csv', '2.csv'), index=False)
-    else:
-        print('No results')
-        pred_center_df.to_csv(fname.replace('.csv', '2.csv'), index=False)
+    # if len(res2) > 0:
+    #     temp_filler = pd.concat(res2)
+    #     full_pred_center = pd.concat([temp_filler, pred_center_df]).reset_index(drop=True)
+    #     full_pred_center.to_csv(fname.replace('.csv', '2.csv'), index=False)
+    # else:
+    #     print('No results')
+    #     pred_center_df.to_csv(fname.replace('.csv', '2.csv'), index=False)
 
     logger.info(f'Wrote output to {fname}')
         

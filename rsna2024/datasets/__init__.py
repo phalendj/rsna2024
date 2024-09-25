@@ -200,6 +200,16 @@ def load_train_files(relative_directory: str, clean: int = 0) -> tuple[pd.DataFr
             dfd = dfd[dfd.study_id.isin(clean_ids.study_id)]
             dfc = dfc[dfc.study_id.isin(clean_ids.study_id)]
 
+        if clean > 6:
+            logger.info('Cleaning to matching subarticular')
+            lss = dfc[dfc.condition == 'Left Subarticular Stenosis']
+            rss = dfc[dfc.condition == 'Right Subarticular Stenosis']
+            good_values = lss.merge(rss, on=['study_id', 'series_id', 'level', 'instance_number']).study_id.unique()
+            
+            df = df[df.study_id.isin(good_values)]
+            dfd = dfd[dfd.study_id.isin(good_values)]
+            dfc = dfc[dfc.study_id.isin(good_values)]
+
         if clean > 100:
             logger.info('Cleaning to all subarticular on one series')
             df, dfc, dfd = clean_multiple(df, dfc, dfd, condition='Subarticular', number=10)

@@ -41,7 +41,7 @@ loss:
 model:
   name: tdcnninstance2
   # model_name: densenet121
-  model_name: tf_efficientnetv2_b2.in1k
+  model_name: tf_efficientnetv2_b3.in1k
   nclasses: 10
   num_layers: 4
   dropout: 0.1

@@ -1,9 +1,9 @@
 seed: 2222
 clean: 2
 debug: false
-train: True
+train: false
 result: sagittalcenters  # evaluate, instance_numbers, sagittalcenters
-load_directory: # /home/phalendj/code/rsna2024/outputs/2024-08-27/17-31-26  # For reloads
+load_directory: /home/phalendj/code/rsna2024/outputs/2024-09-24/09-37-40/ # /home/phalendj/code/rsna2024/outputs/2024-08-27/17-31-26  # For reloads
 mode: valid
 
 directories:
@@ -39,9 +39,10 @@ dataset:
 loss:
   name: HeatmapLoss
   patch_size: 512
+  h_scale: 8.0
 model:
   name: unet
-  encodername: timm-efficientnet-b2
+  encodername: timm-efficientnet-b4
   model_name: densenet121
   channels: 15
   unet_classes: 5
@@ -57,7 +58,7 @@ optimization:
   # n_cycles: 0.475
 
   scheduler: MultiStepLR
-  milestones: [15, 25]
+  milestones: [10, 25]
   gamma: 0.3
   
 training:
