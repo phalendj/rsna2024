@@ -636,7 +636,7 @@ class TDCNNAllXLevelSideModel2(nn.Module):
         self.foraminal_model = TDCNNLevelSideModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
         self.subarticular_model = TDCNNLevelSideModel2(model_name=model_name, img_size=img_size, in_c=in_c, n_classes=n_classes, num_layers=num_layers, dropout=dropout)
 
-        d_model = 1024
+        d_model = 1024 if 'densenet' in model_name else 1280
         self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=dropout)
         layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
         self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
@@ -694,4 +694,217 @@ class TDCNNAllXLevelSideModel2(nn.Module):
         y = y.reshape(B, L, 5, 3)
         y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
 
+        return {'labels': y}
+    
+
+
+class TDCNNModel3(nn.Module):
+    def __init__(self, model_name: str, img_size: tuple[int, int], in_c: int = 3, n_classes: int = 3, num_layers: int = 4, dropout: float = 0.1):
+        super().__init__()
+        self.feature_model = timm.create_model(
+                                    model_name,
+                                    pretrained=rsnautils.PRELOAD, 
+                                    features_only=False,
+                                    in_chans=in_c,
+                                    num_classes=n_classes,
+                                    global_pool='avg'
+                                    )
+        X = torch.randn(2, 1, *img_size)
+        Y = self.feature_model.forward_features(X)
+        d_model = Y.shape[1]
+        logger.info(f'Feature dimension for tdcnn {d_model}')
+        
+        self.in_c = in_c
+        self.pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.pos_encoding = PositionalEncoding(num_hiddens=d_model, dropout=dropout)
+        layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True, dropout=dropout)
+        self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.dropout = nn.Dropout(p=dropout)
+        self.classifier = nn.LazyLinear(n_classes)
+        self.n_classes = n_classes
+
+        self.model_name = model_name
+    
+    def load_feature_model(self, fname):
+        self.feature_model.load_state_dict(torch.load(fname))
+        
+    def freeze_features(self):
+        print('freeze features')
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+        
+    def unfreeze_features(self):
+        print('unfreeze features')
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def name(self):
+        return f'td_cnn3_{self.model_name}'
+    
+    def forward_encode(self, x):
+        B, I, H, W = x.shape
+        j = self.in_c//2
+        x = torch.stack([x[:,i-j:i+j+1] for i in range(j,I-j+1,2)], dim=1)
+
+        I = x.shape[1]
+
+        x = x.flatten(0,1)
+        y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
+        y = self.pool(y).flatten(1)  # B*I, D
+        y = y.reshape(B, I, -1)
+        y = self.pos_encoding(y)
+        y = self.encoder(y)  # B, I, 1024
+        return y
+    
+    def forward_features(self, x):
+        # B, I, H, W = x.shape
+        y = self.forward_encode(x)  # B, I, 1024
+    
+        #TODO: Try different pooling methods: avg, max, catavgmax
+        y = F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        # y = F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)  # B, 1024
+        # y = torch.concatenate([F.adaptive_avg_pool1d(y.transpose(-1, -2), 1).squeeze(-1), F.adaptive_max_pool1d(y.transpose(-1, -2), 1).squeeze(-1)], dim=1)
+        return y
+
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.forward_features(X)
+        y = self.dropout(y)
+        return {'labels': self.classifier(y)}
+
+
+class TDCNNInstanceModel3(TDCNNModel3):
+    def name(self):
+        return f'td_cnn3_instance_{self.model_name}'
+    
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.forward_encode(X)
+        y = self.dropout(y)
+        return {'instance_labels': self.classifier(y)}
+    
+
+class TDCNNLevelInstanceModel3(TDCNNModel3):
+    def name(self):
+        return f'td_cnn3_level_instance_{self.model_name}'
+    
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+
+        B, L, I, H, W = X.shape
+        X = X.flatten(0, 1)
+        y = self.forward_encode(X)
+        y = self.dropout(y)
+        y = self.classifier(y)
+        y = y.reshape(B, L, -1)
+        return {'instance_labels': y}
+
+
+class TDCNNLevelModel3(TDCNNModel3):
+    def level_forward(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        t = super().forward(x)
+        y = t['labels']
+        # y.shape = B*L, nclasses
+        y = y.reshape(B, L, -1, self.n_classes)  # Now B, Condition, Level, diagnosis
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+        return y
+    
+    def level_forward_features(self, x):
+        B, L, I, H, W = x.shape
+        x = x.flatten(0, 1)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        y = super().forward_features(x)
+        # y.shape = B*L, feature dim (1024 or something like that)
+        y = y.reshape(B, L, -1)  # Now B, Level, feature dim
+        return y
+    
+    # def level_forward_vision_features(self, x):
+    #     B, L, I, H, W = x.shape
+    #     x = x.flatten(0, 2).unsqueeze(1)  # Now first index is is B0L0I0, ... , dim = (B*L*I, 1, H, W)
+    #     y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
+    #     y = self.pool(y).flatten(1)  # B*L*I, D
+    #     y = y.reshape(B, L, I, -1)
+    #     return y
+
+    def name(self):
+        return f'td_cnn3_level_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname))
+
+    def freeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+
+    def unfreeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.level_forward(X)
+        return {'labels': y}
+    
+
+class TDCNNLevelSideModel3(TDCNNModel3):
+    def level_forward(self, x):
+        B, L, S, I, H, W = x.shape
+        assert S == 2
+        x = x.flatten(0, 2)  # Now first index is is B0L0S0, B0L0S1, B0L1S0, ..., B0L4S1, B1L0S0, B1L0S1,B1L1S0, ... , dim = (B*L*S, I, H, W)
+        t = super().forward(x)
+        y = t['labels']
+        # y.shape = B*L*S, nclasses
+        y = y.reshape(B, L, S, -1)  # Now B, Level, Side, diagnosis
+        assert y.shape[-1] == self.n_classes
+        y = y.transpose(1,2).flatten(1)  # Now B, nclasses*nlevels
+        return y
+    
+    def level_forward_features(self, x):
+        B, L, S, I, H, W = x.shape
+        x = x.flatten(0, 2)  # Now first index is is B0L0, B0L1, ..., B0L4, B1L0, B1L1, ... , dim = (B*L, I, H, W)
+        y = super().forward_features(x)
+        # y.shape = B*L, feature dim (1024 or something like that)
+        y = y.reshape(B, L, S, -1)  # Now B, Level, feature dim
+        return y
+
+    # def level_forward_vision_features(self, x):
+    #     B, L, S, I, H, W = x.shape
+    #     x = x.flatten(0, 3).unsqueeze(1)  # Now first index is is B0L0S0I0, ... , dim = (B*L*S*I, 1, H, W)
+    #     y = self.feature_model.forward_features(x)  # B*I, D, 4 ,4
+    #     y = self.pool(y).flatten(1)  # B*L*S*I, D
+    #     y = y.reshape(B, L, S, I, -1)
+    #     return y
+
+    def name(self):
+        return f'td_cnn3_level_side_{self.model_name}'
+
+    def load(self, load_dir, fold):
+        fname = Path(load_dir) / (self.name() + f'_fold{fold}.pth')
+        logger.info(f'Loading Model from {fname}')
+        self.load_state_dict(torch.load(fname))
+
+    def freeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = False
+
+    def unfreeze_vision(self):
+        for parameters in self.feature_model.parameters():
+            parameters.requires_grad = True
+
+    def forward(self, X):
+        if isinstance(X, dict):
+            key = [k for k in X.keys() if 'Patch' in k][0]
+            X = X[key]
+        y = self.level_forward(X)
         return {'labels': y}

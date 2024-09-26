@@ -42,9 +42,17 @@ def create_model(cfg, fold):
     elif cfg.name == 'tdcnninstance2':
         return tdcnn.TDCNNInstanceModel2(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnnlevel2':
-        return tdcnn.TDCNNLevelModel2(model_name=cfg.model_name, img_size=(64, 64), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+        return tdcnn.TDCNNLevelModel2(model_name=cfg.model_name, img_size=(224, 224), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     elif cfg.name == 'tdcnnlevelside2':
         return tdcnn.TDCNNLevelSideModel2(model_name=cfg.model_name, img_size=(224, 224), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'tdcnn3':
+        return tdcnn.TDCNNModel3(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'tdcnninstance3':
+        return tdcnn.TDCNNInstanceModel3(model_name=cfg.model_name, img_size=(512, 512), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'tdcnnlevel3':
+        return tdcnn.TDCNNLevelModel3(model_name=cfg.model_name, img_size=(224, 224), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
+    elif cfg.name == 'tdcnnlevelside3':
+        return tdcnn.TDCNNLevelSideModel3(model_name=cfg.model_name, img_size=(224, 224), in_c=1, n_classes=cfg.nclasses, num_layers=cfg.num_layers, dropout=cfg.dropout)
     
     elif cfg.name == 'tdcnnalllevelside2':
         model = tdcnn.TDCNNAllLevelSideModel2(model_name=cfg.model_name, img_size=(224, 224), hidden_dim=cfg.hidden_dim,
