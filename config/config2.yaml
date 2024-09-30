@@ -50,12 +50,13 @@ loss:
   
 model:
   name: tdcnnalllevelside2
-  model_name: densenet121
+  # model_name: densenet121
+  model_name: tf_efficientnetv2_b0.in1k
   nclasses: 3  # 6 with L/R, 3 for spinal
   num_layers: 4
   hidden_dim: 512
   dropout: 0.1
-  preload: /data/phalendj/kaggle/rsna2024/Submission_20240905/
+  preload: /data/phalendj/kaggle/rsna2024/Submission_20240926/
 
 optimization:
   optimizer: AdamW
@@ -66,7 +67,7 @@ optimization:
   # n_cycles: 0.475
 
   scheduler: MultiStepLR
-  milestones: [3, 7]
+  milestones: [4, 7]
   gamma: 0.1
 
 training:
@@ -74,7 +75,7 @@ training:
   # use_folds: [2]
   use_amp: True
   epochs: 8
-  batch_size: 16
+  batch_size: 32
   grad_acc: 1
   early_stopping: 5
   workers: 12

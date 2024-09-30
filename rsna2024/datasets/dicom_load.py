@@ -417,18 +417,22 @@ class OrientedStack:
         patch[:, i0:(i0+x1-x0), j0:(j0+y1-y0)] = thick_slice[:, x0:x1, y0:y1]
         return patch, instance_numbers, (x0-i0, y0-j0)
 
-
     def get_thick_area(self, instance_number: int, slice_thickness: int, x: int, y: int, patch_size: int, d_mm: float, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> tuple[np.array, np.array, tuple[int, int]]:
         pixel_spacing = self.dicom_info['pixel_spacing'][0]
         dx, dy = np.array([d_mm, d_mm])/pixel_spacing
         assert abs(dx - dy) < 1
         sub_patch_size = int(round(dx))
         sub_patch, instance_numbers, offsets = self.get_thick_patch(instance_number=instance_number, slice_thickness=slice_thickness, x=x, y=y, patch_size=sub_patch_size, boundary_instance=boundary_instance, center=center, center_patch=center_patch)
-        data = cv2.resize(sub_patch.transpose(1,2,0), (patch_size, patch_size), interpolation=cv2.INTER_LANCZOS4).transpose(2,0,1)
+        if len(sub_patch.shape) == 2:
+            sub_patch = np.expand_dims(sub_patch, 0)
+        data = cv2.resize(sub_patch.transpose(1,2,0), (patch_size, patch_size), interpolation=cv2.INTER_LANCZOS4)
+        if len(data.shape) == 3:
+            data = data.transpose(2,0,1)
+        else:
+            data = np.expand_dims(data, 0)
         scalings = np.array([sub_patch_size/patch_size, sub_patch_size/patch_size], dtype=float)
 
         return data, instance_numbers, offsets, scalings
-
 
     def get_thick_volume(self, instance_number: int, slice_thickness: int, x: int, y: int, patch_size: int, d_mm: float, dx_slice_mm: float, boundary_instance: int|None = None, center: bool = False, center_patch: bool = False) -> tuple[np.array, np.array, tuple[int, int]]:
         pixel_spacing = self.dicom_info['pixel_spacing'][0]
