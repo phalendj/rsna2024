@@ -76,10 +76,11 @@ Given the size of the areas we would pull for our diagnosis model, we found that
 
 ### Diagnosis Model
 
-After finding locations, we used a 224x224 image for input into a TDCNN, same as outlined above.  We would find the center location for a level, then cut an image of size 40-50mm around that location and scale to the input size.  We found that the different studies had a wide variety of pixel spacings, so this gave a standard size of the target area.  We would then train this with Weighted CrossEntropyLoss.
+After finding locations, we used a 224x224 image for input into a TDCNN, same as outlined above.  We would find the center location for a level, then cut an image of size 40-50mm around that location and scale to the input size.  We found that the different studies had a wide variety of pixel spacings, so this gave a standard size of the target area.  We would then train this with Weighted CrossEntropyLoss.  The model we submitted with was `densenet121`.
 
 For spinal, the size of a batch for training would be (B, 5(Levels), 11(Images), 224, 224), for foraminal narrowing (B, 5(Levels), 2 (Sides), 11(Images), 224, 224), and for subarticular stenosis (B, 5(Levels), 7(Images), 224, 224).  For Subarticular Stenosis, we found applying a flip to the right side images gave a better model since everything was in a standard format.
 
+After all of the training, we did add a master model that had all the same inputs, but joined all outputs for a single level into a large input for a classifier head.  We found there was a lot of correllation in the different diagnoses for a single spinal level, but not as much among the different levels.
 
 ### What did not work for us
 
