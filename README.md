@@ -97,6 +97,8 @@ After all of the training, we did add a master model that had all the same input
 
 ## Running
 
+We used Poetry to manage all packages.
+
 ## Setup Poetry for package management
 ```
 curl -sSL https://install.python-poetry.org | python -
