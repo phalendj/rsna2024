@@ -3,7 +3,7 @@ clean: 6
 debug: False
 train: True
 result: evaluate  # evaluate, instance_numbers, sagittalcenters
-load_directory: /home/phalendj/code/rsna2024/outputs/2024-09-23/13-33-15/ # /home/phalendj/code/rsna2024/outputs/2024-09-23/10-35-04/ # /home/phalendj/code/rsna2024/outputs/2024-09-20/18-15-46/ # For reloads
+load_directory: /home/phalendj/code/rsna2024/outputs/2024-10-07/08-38-36/ # /home/phalendj/code/rsna2024/outputs/2024-09-23/10-35-04/ # /home/phalendj/code/rsna2024/outputs/2024-09-20/18-15-46/ # For reloads
 mode: valid
 
 directories:
@@ -29,7 +29,7 @@ dataset:
     blur_limit: 9
     noise: True
     downscale: True
-    distort: False
+    distort: True
     rotate: False
     crop:
       use: false
@@ -45,8 +45,8 @@ loss:
 model:
   name: magic
   # model_name: densenet121
-  # model_name: pvt_v2_b2
-  model_name: tf_efficientnetv2_b2.in1k
+  model_name: pvt_v2_b2
+  # model_name: tf_efficientnetv2_b2.in1k
   nclasses: 3
   num_layers: 4
   bottleneck_layers: 4
@@ -70,7 +70,7 @@ training:
   # use_folds: [2]
   use_amp: True
   epochs: 15
-  batch_size: 8
+  batch_size: 4
   grad_acc: 1
   early_stopping: 5
   workers: 12

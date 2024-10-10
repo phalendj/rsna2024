@@ -1,66 +1,71 @@
 seed: 2222
-
-
+clean: 2
+debug: false
+train: true
+result: sagittalcenters
+load_directory: null
+mode: valid
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
   image_directory: train_images
-
-
 dataset:
-  name: SegmentationCenterDataset
-  image_size: [512, 512]
+  name: SegmentationPredictedCenterDataset
+  image_size:
+  - 512
+  - 512
   series_description: Sagittal T2/STIR
-  conditions: ['Spinal Canal Stenosis']
-  channels: 5
-  aug_size: 0.10
+  conditions:
+  - Spinal Canal Stenosis
+  channels: 15
+  aug_size: 0.1
+  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75
-    normalize: True
-    hflip: False
-    contrast: False
-    blur: False
-    distort: False
-    rotate: False
-    channel_shuffle: False
+    normalize: true
+    hflip: false
+    contrast: true
+    blur: true
+    blur_limit: 9
+    noise: true
+    downscale: true
+    distort: false
+    rotate: false
     crop:
-      use: False
-      size: 64
-    sharpen: False
-  
-
+      use: false
+      size: 512
+    channel_shuffle: false
+    sharpen: false
 loss:
-  # name: WeightedCrossEntropy
   name: HeatmapLoss
   patch_size: 512
-  # name: MixedLoss
-  # patch_size: 512
-  # center_change: 7
-  # width_change: 1.5
-
+  h_scale: 8.0
 model:
   name: unet
-  model_name: densenet201
-  encodername: resnet34
-  channels: 5
+  encodername: timm-efficientnet-b2
+  model_name: densenet121
+  channels: 15
   unet_classes: 5
   nclasses: 15
   patch_size: 512
-  # subsize: 64
-  # preload: /home/phalendj/code/rsna2024/outputs/2024-08-01/15-48-48/
-
 optimization:
   optimizer: AdamW
-  scheduler: CosineWithWarmup
-  learning_rate: 1.0e-4
-  weight_decay: 1.e-2
-  n_cycles: 0.475
-
+  learning_rate: 0.0002
+  weight_decay: 0.01
+  scheduler: MultiStepLR
+  milestones:
+  - 15
+  - 25
+  gamma: 0.3
 training:
-  use_folds: [0, 1, 2, 3, 4]
-  use_amp: True
-  epochs: 20
-  batch_size: 32
+  use_folds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  use_amp: true
+  epochs: 30
+  batch_size: 24
   grad_acc: 1
-  early_stopping: 10
+  early_stopping: 5
   workers: 12
-

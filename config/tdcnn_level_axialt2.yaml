@@ -1,54 +1,71 @@
 seed: 2222
-
-
+clean: 6
+debug: false
+train: true
+result: evaluate
+load_directory: null
+mode: valid
 directories:
   relative_directory: /data/phalendj/kaggle/rsna2024
   image_directory: train_images
-
-
 dataset:
-  name: LevelCubeDataset
-  image_size: [512, 512]
+  name: LevelCubeLeftRightAreaDataset
+  image_size:
+  - 512
+  - 512
   series_description: Axial T2
-  conditions: ['Spinal Canal Stenosis', 'Left Neural Foraminal Narrowing', 'Right Neural Foraminal Narrowing', 'Left Subarticular Stenosis', 'Right Subarticular Stenosis']
-  # conditions: ['Spinal Canal Stenosis']
-  channels: 15
-  subsize: 64
+  conditions:
+  - Left Subarticular Stenosis
+  - Right Subarticular Stenosis
+  channels: 7
+  subsize: 224
+  d_side: 40
+  aug_size: 0.1
+  center_file: /data/phalendj/kaggle/rsna2024/train_label_coordinates.csv
   augmentations:
     prob: 0.75
-    normalize: True
-    hflip: False
-    contrast: True
-    blur: True
-    distort: True
-    rotate: False
-  
-
+    normalize: true
+    hflip: false
+    contrast: true
+    blur: true
+    blur_limit: 9
+    noise: true
+    downscale: true
+    distort: true
+    rotate: true
+    crop:
+      use: false
+      size: 512
+    channel_shuffle: false
+    sharpen: false
 loss:
   name: WeightedCrossEntropy
-  # name: HeatmapLoss
-  # patch_size: 512
-  
 model:
-  name: tdcnnlevel
+  name: tdcnnlevelside2
   model_name: densenet121
-  nclasses: 15
-  subsize: 64
+  nclasses: 3
   num_layers: 4
-
+  subsize: 64
+  dropout: 0.1
 optimization:
   optimizer: AdamW
-  scheduler: CosineWithWarmup
-  learning_rate: 1.0e-4
-  weight_decay: 1.e-2
-  n_cycles: 0.475
-
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  scheduler: MultiStepLR
+  milestones:
+  - 5
+  - 10
+  gamma: 0.1
 training:
-  use_folds: [0, 1, 2, 3, 4]
-  use_amp: True
-  epochs: 10
-  batch_size: 16
+  use_folds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  use_amp: true
+  epochs: 15
+  batch_size: 6
   grad_acc: 1
-  early_stopping: 3
+  early_stopping: 5
   workers: 12
-

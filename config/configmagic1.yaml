@@ -12,8 +12,8 @@ directories:
 dataset:
   name: SegmentationPredictedCenterDataset
   image_size:
-  - 512
-  - 512
+  - 384
+  - 384
   series_description: Sagittal T2/STIR
   conditions:
   - Spinal Canal Stenosis
@@ -74,7 +74,7 @@ training:
   - 4
   use_amp: true
   epochs: 8
-  batch_size: 4
+  batch_size: 8
   grad_acc: 1
   early_stopping: 5
   workers: 12

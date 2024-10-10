@@ -196,7 +196,7 @@ class MagicModel(nn.Module):
         output_size = int(np.sqrt(1024 // d_model))
         logger.info(f'Adaptive pooling size: {output_size} for d_model = {d_model}')
 
-        self.instance_prediction = InstancePredictionHead(d_model=d_model*output_size*2, num_layers=instance_layers, dropout=dropout, output_size=output_size, n_classes=num_points*2)
+        self.instance_prediction = InstancePredictionHead(d_model=d_model*output_size, num_layers=instance_layers, dropout=dropout, output_size=output_size, n_classes=num_points*2)
 
         self.unet_decoder = FlattenerUnetDecoder(encoder_channels=encoder_channels, skip_channels=skip_channels, decoder_channels=decoder_channels, scalings=scalings)
 

@@ -3,7 +3,7 @@ clean: 2
 debug: False
 train: True
 result: sagittalcenters  # evaluate, instance_numbers, sagittalcenters
-load_directory: # /home/phalendj/code/rsna2024/outputs/2024-09-23/12-31-37/ # /home/phalendj/code/rsna2024/outputs/2024-09-20/06-53-53/  # For reloads
+load_directory: /home/phalendj/code/rsna2024/outputs/2024-10-07/08-18-13/ # /home/phalendj/code/rsna2024/outputs/2024-09-23/12-31-37/ # /home/phalendj/code/rsna2024/outputs/2024-09-20/06-53-53/  # For reloads
 mode: valid
 
 directories:
@@ -40,13 +40,14 @@ loss:
   # name: InstanceLevelCrossEntropy  
   name: HeatmapLoss
   patch_size: 512
+  h_scale: 8
   # name: WeightedCrossEntropy
 
 model:
   name: magic
   # model_name: densenet121
-  # model_name: pvt_v2_b2
-  model_name: tf_efficientnetv2_b2.in1k
+  model_name: pvt_v2_b2
+  # model_name: tf_efficientnetv2_b2.in1k
   nclasses: 3
   num_layers: 4
   bottleneck_layers: 4
@@ -74,7 +75,7 @@ training:
   - 4
   use_amp: true
   epochs: 10  # After this, training loss no longer improves with augs
-  batch_size: 8
+  batch_size: 4
   grad_acc: 1
   early_stopping: 5
   workers: 12
